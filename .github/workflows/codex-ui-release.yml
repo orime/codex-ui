@@ -52,7 +52,7 @@ jobs:
         run: ./scripts/package-codex-ui-release.sh ${{ matrix.target }} dist
 
       - name: Upload packaged asset
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-ui-${{ matrix.target }}
           path: |
