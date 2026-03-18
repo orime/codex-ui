@@ -1,4 +1,5 @@
 use crate::history_cell::PlainHistoryCell;
+use crate::style::opencode_accent_style;
 use codex_app_server_protocol::ConfigLayerSource;
 use codex_core::config::Config;
 use codex_core::config_loader::ConfigLayerEntry;
@@ -10,6 +11,7 @@ use codex_core::config_loader::ResidencyRequirement;
 use codex_core::config_loader::SandboxModeRequirement;
 use codex_core::config_loader::WebSearchModeRequirement;
 use codex_protocol::protocol::SessionNetworkProxyRuntime;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use toml::Value as TomlValue;
@@ -53,7 +55,10 @@ fn session_all_proxy_url(http_addr: &str, socks_addr: &str, socks_enabled: bool)
 }
 
 fn render_debug_config_lines(stack: &ConfigLayerStack) -> Vec<Line<'static>> {
-    let mut lines = vec!["/debug-config".magenta().into(), "".into()];
+    let mut lines = vec![
+        "/debug-config".set_style(opencode_accent_style()).into(),
+        "".into(),
+    ];
 
     lines.push(
         "Config layer stack (lowest precedence first):"

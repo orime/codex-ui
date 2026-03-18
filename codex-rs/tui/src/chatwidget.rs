@@ -158,9 +158,9 @@ use crossterm::event::KeyModifiers;
 use rand::Rng;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
@@ -267,6 +267,10 @@ use crate::slash_command::SlashCommand;
 use crate::status::RateLimitSnapshotDisplay;
 use crate::status_indicator_widget::STATUS_DETAILS_DEFAULT_MAX_LINES;
 use crate::status_indicator_widget::StatusDetailsCapitalization;
+use crate::style::opencode_error;
+use crate::style::opencode_info_style;
+use crate::style::opencode_secondary_style;
+use crate::style::opencode_text_muted;
 use crate::text_formatting::truncate_text;
 use crate::tui::FrameRequester;
 mod interrupts;
@@ -1337,7 +1341,12 @@ impl ChatWidget {
     fn log_websocket_timing_totals(&mut self, delta: RuntimeMetricsSummary) {
         if let Some(label) = history_cell::runtime_metrics_label(delta.responses_api_summary()) {
             self.add_plain_history_lines(vec![
-                vec!["• ".dim(), format!("WebSocket timing: {label}").dark_gray()].into(),
+                vec![
+                    "• ".dim(),
+                    format!("WebSocket timing: {label}")
+                        .set_style(ratatui::style::Style::default().fg(opencode_text_muted())),
+                ]
+                .into(),
             ]);
         }
     }
@@ -1450,9 +1459,11 @@ impl ChatWidget {
                 let line: Line<'static> = vec![
                     "• ".dim(),
                     "Thread forked from ".into(),
-                    name.cyan(),
+                    name.set_style(opencode_secondary_style()),
                     " (".into(),
-                    forked_from_id_text.clone().cyan(),
+                    forked_from_id_text
+                        .clone()
+                        .set_style(opencode_secondary_style()),
                     ")".into(),
                 ]
                 .into();
@@ -1464,7 +1475,9 @@ impl ChatWidget {
                 let line: Line<'static> = vec![
                     "• ".dim(),
                     "Thread forked from ".into(),
-                    forked_from_id_text.clone().cyan(),
+                    forked_from_id_text
+                        .clone()
+                        .set_style(opencode_secondary_style()),
                 ]
                 .into();
                 app_event_tx.send(AppEvent::InsertHistoryCell(Box::new(
@@ -6509,7 +6522,9 @@ impl ChatWidget {
         let warning = format!(
             "Warning: OpenAI base URL is overridden to {base_url}. Selecting models may not be supported or work properly."
         );
-        Some(Line::from(warning.red()))
+        Some(Line::from(warning.set_style(
+            ratatui::style::Style::default().fg(opencode_error()),
+        )))
     }
 
     fn custom_openai_base_url(&self) -> Option<String> {
@@ -7236,7 +7251,7 @@ impl ChatWidget {
         let footer_note = show_elevate_sandbox_hint.then(|| {
             vec![
                 "The non-admin sandbox protects your files and prevents network access under most circumstances. However, it carries greater risk if prompt injected. To upgrade to the default sandbox, run ".dim(),
-                "/setup-default-sandbox".cyan(),
+                "/setup-default-sandbox".set_style(opencode_info_style()),
                 ".".dim(),
             ]
             .into()
@@ -7383,7 +7398,7 @@ impl ChatWidget {
             "When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval. "
                 .into(),
             "Exercise caution when enabling full access. This significantly increases the risk of data loss, leaks, or unexpected behavior."
-                .fg(Color::Red),
+                .fg(opencode_error()),
         ]);
         header_children.push(Box::new(title_line));
         header_children.push(Box::new(
@@ -7479,7 +7494,7 @@ impl ChatWidget {
                 "We couldn't complete the world-writable scan, so protections cannot be verified. "
                     .into(),
                 format!("The Windows sandbox cannot guarantee protection in {mode_label}.")
-                    .fg(Color::Red),
+                    .fg(opencode_error()),
             ])
         } else {
             Line::from(vec![
@@ -8392,9 +8407,9 @@ impl ChatWidget {
         let line = vec![
             "• ".into(),
             "Thread renamed to ".into(),
-            name.cyan(),
+            name.set_style(opencode_secondary_style()),
             ", to resume this thread run ".into(),
-            resume_cmd.cyan(),
+            resume_cmd.set_style(opencode_secondary_style()),
         ];
         PlainHistoryCell::new(vec![line.into()])
     }

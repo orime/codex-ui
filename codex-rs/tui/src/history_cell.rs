@@ -27,6 +27,13 @@ use crate::render::line_utils::push_owned_lines;
 use crate::render::renderable::Renderable;
 use crate::style::proposed_plan_style;
 use crate::style::user_message_style;
+use crate::style::{
+    opencode_accent, opencode_accent_style, opencode_background, opencode_background_secondary,
+    opencode_border, opencode_commentary_text, opencode_error, opencode_error_style, opencode_info,
+    opencode_info_style, opencode_primary, opencode_primary_style, opencode_secondary,
+    opencode_secondary_style, opencode_text, opencode_text_emphasis, opencode_text_muted,
+    opencode_warning_style,
+};
 use crate::text_formatting::format_and_truncate_tool_result;
 use crate::text_formatting::truncate_text;
 use crate::tooltips;
@@ -294,7 +301,7 @@ impl HistoryCell for UserHistoryCell {
             .max(1);
 
         let style = user_message_style();
-        let element_style = style.fg(Color::Cyan);
+        let element_style = style.fg(opencode_secondary());
 
         let wrapped_remote_images = if self.remote_image_urls.is_empty() {
             None
@@ -346,12 +353,14 @@ impl HistoryCell for UserHistoryCell {
         }
 
         let mut lines: Vec<Line<'static>> = vec![Line::from("").style(style)];
+        let user_prefix = Span::styled("│ ".to_string(), style.fg(opencode_secondary()));
+        let user_padding = Span::styled("  ".to_string(), style);
 
         if let Some(wrapped_remote_images) = wrapped_remote_images {
             lines.extend(prefix_lines(
                 wrapped_remote_images,
-                "  ".into(),
-                "  ".into(),
+                user_prefix.clone(),
+                user_prefix.clone(),
             ));
             if wrapped_message.is_some() {
                 lines.push(Line::from("").style(style));
@@ -361,8 +370,8 @@ impl HistoryCell for UserHistoryCell {
         if let Some(wrapped_message) = wrapped_message {
             lines.extend(prefix_lines(
                 wrapped_message,
-                "› ".bold().dim(),
-                "  ".into(),
+                user_prefix,
+                user_padding,
             ));
         }
 
@@ -373,7 +382,7 @@ impl HistoryCell for UserHistoryCell {
 
 #[derive(Debug)]
 pub(crate) struct ReasoningSummaryCell {
-    _header: String,
+    header: String,
     content: String,
     /// Session cwd used to render local file links inside the reasoning body.
     cwd: PathBuf,
@@ -385,7 +394,7 @@ impl ReasoningSummaryCell {
     /// cwd active when the summary was recorded.
     pub(crate) fn new(header: String, content: String, cwd: &Path, transcript_only: bool) -> Self {
         Self {
-            _header: header,
+            header,
             content,
             cwd: cwd.to_path_buf(),
             transcript_only,
@@ -393,32 +402,52 @@ impl ReasoningSummaryCell {
     }
 
     fn lines(&self, width: u16) -> Vec<Line<'static>> {
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        append_markdown(
-            &self.content,
-            Some((width as usize).saturating_sub(2)),
-            Some(self.cwd.as_path()),
-            &mut lines,
-        );
-        let summary_style = Style::default().dim().italic();
-        let summary_lines = lines
-            .into_iter()
-            .map(|mut line| {
-                line.spans = line
-                    .spans
-                    .into_iter()
-                    .map(|span| span.patch_style(summary_style))
-                    .collect();
-                line
-            })
-            .collect::<Vec<_>>();
+        let wrap_width = usize::from(width.max(1)).saturating_sub(2).max(1);
+        let mut out: Vec<Line<'static>> = Vec::new();
 
-        adaptive_wrap_lines(
-            &summary_lines,
-            RtOptions::new(width as usize)
-                .initial_indent("• ".dim().into())
-                .subsequent_indent("  ".into()),
-        )
+        if !self.header.trim().is_empty() {
+            let mut header_lines: Vec<Line<'static>> = Vec::new();
+            append_markdown(
+                &self.header,
+                Some(wrap_width),
+                Some(self.cwd.as_path()),
+                &mut header_lines,
+            );
+            let header_lines = adaptive_wrap_lines(
+                &header_lines,
+                RtOptions::new(width as usize)
+                    .initial_indent("• ".dim().into())
+                    .subsequent_indent("  ".into()),
+            );
+            out.extend(header_lines);
+            if !self.content.trim().is_empty() {
+                out.push(Line::from(" "));
+            }
+        }
+
+        if !self.content.trim().is_empty() {
+            let mut body_lines: Vec<Line<'static>> = Vec::new();
+            append_markdown(
+                &self.content,
+                Some(wrap_width),
+                Some(self.cwd.as_path()),
+                &mut body_lines,
+            );
+            let commentary_style = Style::default().fg(opencode_commentary_text()).dim();
+            let body_lines = body_lines
+                .into_iter()
+                .map(|line| line.style(commentary_style))
+                .collect::<Vec<_>>();
+            let body_lines = adaptive_wrap_lines(
+                &body_lines,
+                RtOptions::new(width as usize)
+                    .initial_indent("  ".into())
+                    .subsequent_indent("  ".into()),
+            );
+            out.extend(body_lines);
+        }
+
+        out
     }
 }
 
@@ -509,19 +538,27 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         use ratatui_macros::line;
         use ratatui_macros::text;
         let update_instruction = if let Some(update_action) = self.update_action {
-            line!["Run ", update_action.command_str().cyan(), " to update."]
+            line![
+                "Run ",
+                update_action
+                    .command_str()
+                    .set_style(opencode_info_style().add_modifier(Modifier::BOLD)),
+                " to update."
+            ]
         } else {
             line![
                 "See ",
-                "https://github.com/openai/codex".cyan().underlined(),
+                "https://github.com/openai/codex"
+                    .set_style(opencode_info_style().add_modifier(Modifier::UNDERLINED)),
                 " for installation options."
             ]
         };
 
         let content = text![
             line![
-                padded_emoji("✨").bold().cyan(),
-                "Update available!".bold().cyan(),
+                padded_emoji("✨").set_style(opencode_primary_style().add_modifier(Modifier::BOLD)),
+                "Update available!"
+                    .set_style(opencode_primary_style().add_modifier(Modifier::BOLD)),
                 " ",
                 format!("{CODEX_CLI_VERSION} -> {}", self.latest_version).bold(),
             ],
@@ -529,8 +566,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
             "",
             "See full release notes:",
             "https://github.com/openai/codex/releases/latest"
-                .cyan()
-                .underlined(),
+                .set_style(opencode_info_style().add_modifier(Modifier::UNDERLINED)),
         ];
 
         let inner_width = content
@@ -715,10 +751,23 @@ impl HistoryCell for UnifiedExecProcessesCell {
             if needs_suffix && budget > truncation_suffix_width {
                 let available = budget.saturating_sub(truncation_suffix_width);
                 let (truncated, _, _) = take_prefix_by_width(&snippet, available);
-                out.push(vec![prefix.dim(), truncated.cyan(), truncation_suffix.dim()].into());
+                out.push(
+                    vec![
+                        prefix.dim(),
+                        truncated.set_style(opencode_secondary_style()),
+                        truncation_suffix.dim(),
+                    ]
+                    .into(),
+                );
             } else {
                 let (truncated, _, _) = take_prefix_by_width(&snippet, budget);
-                out.push(vec![prefix.dim(), truncated.cyan()].into());
+                out.push(
+                    vec![
+                        prefix.dim(),
+                        truncated.set_style(opencode_secondary_style()),
+                    ]
+                    .into(),
+                );
             }
 
             let chunk_prefix_first = "    ↳ ";
@@ -772,7 +821,7 @@ impl HistoryCell for UnifiedExecProcessesCell {
 pub(crate) fn new_unified_exec_processes_output(
     processes: Vec<UnifiedExecProcessDetails>,
 ) -> CompositeHistoryCell {
-    let command = PlainHistoryCell::new(vec!["/ps".magenta().into()]);
+    let command = PlainHistoryCell::new(vec!["/ps".set_style(opencode_accent_style()).into()]);
     let summary = UnifiedExecProcessesCell::new(processes);
     CompositeHistoryCell::new(vec![Box::new(command), Box::new(summary)])
 }
@@ -803,7 +852,7 @@ pub fn new_approval_decision_cell(
         Approved => {
             let snippet = Span::from(exec_snippet(&command)).dim();
             (
-                "✔ ".green(),
+                "✔ ".set_style(Style::default().fg(opencode_primary())),
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
@@ -818,7 +867,7 @@ pub fn new_approval_decision_cell(
         } => {
             let snippet = Span::from(exec_snippet(&proposed_execpolicy_amendment.command)).dim();
             (
-                "✔ ".green(),
+                "✔ ".set_style(Style::default().fg(opencode_primary())),
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
@@ -830,7 +879,7 @@ pub fn new_approval_decision_cell(
         ApprovedForSession => {
             let snippet = Span::from(exec_snippet(&command)).dim();
             (
-                "✔ ".green(),
+                "✔ ".set_style(Style::default().fg(opencode_primary())),
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
@@ -844,7 +893,7 @@ pub fn new_approval_decision_cell(
             network_policy_amendment,
         } => match network_policy_amendment.action {
             NetworkPolicyRuleAction::Allow => (
-                "✔ ".green(),
+                "✔ ".set_style(Style::default().fg(opencode_primary())),
                 vec![
                     actor.subject().into(),
                     "persisted".bold(),
@@ -853,7 +902,7 @@ pub fn new_approval_decision_cell(
                 ],
             ),
             NetworkPolicyRuleAction::Deny => (
-                "✗ ".red(),
+                "✗ ".set_style(Style::default().fg(opencode_error())),
                 vec![
                     actor.subject().into(),
                     "denied".bold(),
@@ -879,12 +928,15 @@ pub fn new_approval_decision_cell(
                     snippet,
                 ],
             };
-            ("✗ ".red(), summary)
+            (
+                "✗ ".set_style(Style::default().fg(opencode_error())),
+                summary,
+            )
         }
         Abort => {
             let snippet = Span::from(exec_snippet(&command)).dim();
             (
-                "✗ ".red(),
+                "✗ ".set_style(Style::default().fg(opencode_error())),
                 vec![
                     actor.subject().into(),
                     "canceled".bold(),
@@ -937,7 +989,7 @@ pub fn new_guardian_denied_patch_request(
 
     Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(summary),
-        "✗ ".red(),
+        "✗ ".set_style(Style::default().fg(opencode_error())),
         "  ",
     ))
 }
@@ -949,7 +1001,11 @@ pub fn new_guardian_denied_action_request(summary: String) -> Box<dyn HistoryCel
         " for ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "✗ ".red(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(
+        line,
+        "✗ ".set_style(Style::default().fg(opencode_error())),
+        "  ",
+    ))
 }
 
 pub fn new_guardian_approved_action_request(summary: String) -> Box<dyn HistoryCell> {
@@ -959,13 +1015,17 @@ pub fn new_guardian_approved_action_request(summary: String) -> Box<dyn HistoryC
         " for ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "✔ ".green(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(
+        line,
+        "✔ ".set_style(Style::default().fg(opencode_primary())),
+        "  ",
+    ))
 }
 
 /// Cyan history cell line showing the current review status.
 pub(crate) fn new_review_status_line(message: String) -> PlainHistoryCell {
     PlainHistoryCell {
-        lines: vec![Line::from(message.cyan())],
+        lines: vec![Line::from(message.set_style(opencode_secondary_style()))],
     }
 }
 
@@ -1002,6 +1062,7 @@ pub(crate) fn card_inner_width(width: u16, max_inner_width: usize) -> Option<usi
 }
 
 /// Render `lines` inside a border sized to the widest span in the content.
+#[allow(dead_code)]
 pub(crate) fn with_border(lines: Vec<Line<'static>>) -> Vec<Line<'static>> {
     with_border_internal(lines, /*forced_inner_width*/ None)
 }
@@ -1016,6 +1077,60 @@ pub(crate) fn with_border_with_inner_width(
     inner_width: usize,
 ) -> Vec<Line<'static>> {
     with_border_internal(lines, Some(inner_width))
+}
+
+fn with_accent_border(
+    lines: Vec<Line<'static>>,
+    forced_inner_width: Option<usize>,
+    accent_color: Color,
+) -> Vec<Line<'static>> {
+    let max_line_width = lines
+        .iter()
+        .map(|line| {
+            line.iter()
+                .map(|span| UnicodeWidthStr::width(span.content.as_ref()))
+                .sum::<usize>()
+        })
+        .max()
+        .unwrap_or(0);
+    let content_width = forced_inner_width
+        .unwrap_or(max_line_width)
+        .max(max_line_width);
+
+    let mut out = Vec::with_capacity(lines.len() + 2);
+    let border_inner_width = content_width + 2;
+    out.push(Line::from(vec![
+        Span::from("╭").fg(accent_color).bold(),
+        Span::from("─".repeat(border_inner_width)).fg(opencode_border()),
+        Span::from("╮").fg(accent_color).bold(),
+    ]));
+
+    for line in lines.into_iter() {
+        let used_width: usize = line
+            .iter()
+            .map(|span| UnicodeWidthStr::width(span.content.as_ref()))
+            .sum();
+        let span_count = line.spans.len();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(span_count + 4);
+        spans.push(Span::from("│ ").fg(opencode_border()));
+        spans.extend(line.into_iter());
+        if used_width < content_width {
+            spans.push(
+                Span::from(" ".repeat(content_width - used_width))
+                    .bg(opencode_background_secondary()),
+            );
+        }
+        spans.push(Span::from(" │").fg(opencode_border()));
+        out.push(Line::from(spans).bg(opencode_background_secondary()));
+    }
+
+    out.push(Line::from(vec![
+        Span::from("╰").fg(accent_color).bold(),
+        Span::from("─".repeat(border_inner_width)).fg(opencode_border()),
+        Span::from("╯").fg(accent_color).bold(),
+    ]));
+
+    out
 }
 
 fn with_border_internal(
@@ -1192,7 +1307,9 @@ pub(crate) fn new_session_info(
         }
         if requested_model != model {
             let lines = vec![
-                "model changed:".magenta().bold().into(),
+                "model changed:"
+                    .set_style(opencode_accent_style().add_modifier(Modifier::BOLD))
+                    .into(),
                 format!("requested: {requested_model}").into(),
                 format!("used: {model}").into(),
             ];
@@ -1312,10 +1429,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
         // Title line rendered inside the box: ">_ OpenAI Codex (vX)"
         let title_spans: Vec<Span<'static>> = vec![
-            Span::from(">_ ").dim(),
-            Span::from("OpenAI Codex").bold(),
-            Span::from(" ").dim(),
-            Span::from(format!("(v{})", self.version)).dim(),
+            Span::from(">_ ").fg(opencode_primary()).bold(),
+            Span::from("OpenAI Codex").fg(opencode_text()).bold(),
+            Span::from(" · ").fg(opencode_text_muted()),
+            Span::from(format!("v{}", self.version)).fg(opencode_secondary()),
         ];
 
         const CHANGE_MODEL_HINT_COMMAND: &str = "/model";
@@ -1331,20 +1448,38 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let reasoning_label = self.reasoning_label();
         let model_spans: Vec<Span<'static>> = {
             let mut spans = vec![
-                Span::from(format!("{model_label} ")).dim(),
-                Span::styled(self.model.clone(), self.model_style),
+                Span::from(format!("{model_label} ")).fg(opencode_text_muted()),
+                Span::styled(
+                    self.model.clone(),
+                    self.model_style.fg(opencode_primary()).bold(),
+                ),
             ];
             if let Some(reasoning) = reasoning_label {
-                spans.push(Span::from(" "));
-                spans.push(Span::from(reasoning));
+                spans.push(" ".into());
+                spans.push(Span::styled(
+                    reasoning,
+                    Style::default()
+                        .fg(opencode_background())
+                        .bg(opencode_accent())
+                        .add_modifier(Modifier::BOLD),
+                ));
             }
             if self.show_fast_status {
                 spans.push("   ".into());
-                spans.push(Span::styled("fast", self.model_style.magenta()));
+                spans.push(Span::styled(
+                    "fast",
+                    Style::default()
+                        .fg(opencode_background())
+                        .bg(opencode_secondary())
+                        .add_modifier(Modifier::BOLD),
+                ));
             }
-            spans.push("   ".dim());
-            spans.push(CHANGE_MODEL_HINT_COMMAND.cyan());
-            spans.push(CHANGE_MODEL_HINT_EXPLANATION.dim());
+            spans.push("   ".fg(opencode_text_muted()));
+            spans.push(Span::styled(
+                CHANGE_MODEL_HINT_COMMAND,
+                Style::default().fg(opencode_info()).bold(),
+            ));
+            spans.push(Span::from(CHANGE_MODEL_HINT_EXPLANATION).fg(opencode_text_muted()));
             spans
         };
 
@@ -1353,7 +1488,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let dir_prefix_width = UnicodeWidthStr::width(dir_prefix.as_str());
         let dir_max_width = inner_width.saturating_sub(dir_prefix_width);
         let dir = self.format_directory(Some(dir_max_width));
-        let dir_spans = vec![Span::from(dir_prefix).dim(), Span::from(dir)];
+        let dir_spans = vec![
+            Span::from(dir_prefix).fg(opencode_text_muted()),
+            Span::from(dir).fg(opencode_text_emphasis()),
+        ];
 
         let lines = vec![
             make_row(title_spans),
@@ -1362,7 +1500,7 @@ impl HistoryCell for SessionHeaderHistoryCell {
             make_row(dir_spans),
         ];
 
-        with_border(lines)
+        with_accent_border(lines, None, opencode_primary())
     }
 }
 
@@ -1486,8 +1624,16 @@ impl HistoryCell for McpToolCallCell {
         let mut lines: Vec<Line<'static>> = Vec::new();
         let status = self.success();
         let bullet = match status {
-            Some(true) => "•".green().bold(),
-            Some(false) => "•".red().bold(),
+            Some(true) => "•".set_style(
+                Style::default()
+                    .fg(opencode_primary())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Some(false) => "•".set_style(
+                Style::default()
+                    .fg(opencode_error())
+                    .add_modifier(Modifier::BOLD),
+            ),
             None => spinner(Some(self.start_time), self.animations_enabled),
         };
         let header_text = if status.is_some() {
@@ -1743,7 +1889,11 @@ fn decode_mcp_image(block: &serde_json::Value) -> Option<DynamicImage> {
 
 #[allow(clippy::disallowed_methods)]
 pub(crate) fn new_warning_event(message: String) -> PrefixedWrappedHistoryCell {
-    PrefixedWrappedHistoryCell::new(message.yellow(), "⚠ ".yellow(), "  ")
+    PrefixedWrappedHistoryCell::new(
+        message.set_style(opencode_warning_style()),
+        "⚠ ".set_style(opencode_warning_style()),
+        "  ",
+    )
 }
 
 #[derive(Debug)]
@@ -1762,7 +1912,13 @@ pub(crate) fn new_deprecation_notice(
 impl HistoryCell for DeprecationNoticeCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(vec!["⚠ ".red().bold(), self.summary.clone().red()].into());
+        lines.push(
+            vec![
+                "⚠ ".set_style(opencode_warning_style().add_modifier(Modifier::BOLD)),
+                self.summary.clone().set_style(opencode_warning_style()),
+            ]
+            .into(),
+        );
 
         let wrap_width = width.saturating_sub(4).max(1) as usize;
 
@@ -1779,7 +1935,7 @@ impl HistoryCell for DeprecationNoticeCell {
 /// Render a summary of configured MCP servers from the current `Config`.
 pub(crate) fn empty_mcp_output() -> PlainHistoryCell {
     let lines: Vec<Line<'static>> = vec![
-        "/mcp".magenta().into(),
+        "/mcp".set_style(opencode_accent_style()).into(),
         "".into(),
         vec!["🔌  ".into(), "MCP Tools".bold()].into(),
         "".into(),
@@ -1805,7 +1961,7 @@ pub(crate) fn new_mcp_tools_output(
     auth_statuses: &HashMap<String, McpAuthStatus>,
 ) -> PlainHistoryCell {
     let mut lines: Vec<Line<'static>> = vec![
-        "/mcp".magenta().into(),
+        "/mcp".set_style(opencode_accent_style()).into(),
         "".into(),
         vec!["🔌  ".into(), "MCP Tools".bold()].into(),
         "".into(),
@@ -1837,7 +1993,7 @@ pub(crate) fn new_mcp_tools_output(
         let mut header: Vec<Span<'static>> = vec!["  • ".into(), server.clone().into()];
         if !cfg.enabled {
             header.push(" ".into());
-            header.push("(disabled)".red());
+            header.push("(disabled)".set_style(opencode_error_style()));
             lines.push(header.into());
             if let Some(reason) = cfg.disabled_reason.as_ref().map(ToString::to_string) {
                 lines.push(vec!["    • Reason: ".into(), reason.dim()].into());
@@ -1846,7 +2002,13 @@ pub(crate) fn new_mcp_tools_output(
             continue;
         }
         lines.push(header.into());
-        lines.push(vec!["    • Status: ".into(), "enabled".green()].into());
+        lines.push(
+            vec![
+                "    • Status: ".into(),
+                "enabled".set_style(Style::default().fg(opencode_primary())),
+            ]
+            .into(),
+        );
         lines.push(vec!["    • Auth: ".into(), auth_status.to_string().into()].into());
 
         match &cfg.transport {
@@ -1967,7 +2129,7 @@ pub(crate) fn new_info_event(message: String, hint: Option<String>) -> PlainHist
     let mut line = vec!["• ".dim(), message.into()];
     if let Some(hint) = hint {
         line.push(" ".into());
-        line.push(hint.dark_gray());
+        line.push(hint.set_style(Style::default().fg(opencode_text_muted())));
     }
     let lines: Vec<Line<'static>> = vec![line.into()];
     PlainHistoryCell { lines }
@@ -1977,7 +2139,8 @@ pub(crate) fn new_error_event(message: String) -> PlainHistoryCell {
     // Use a hair space (U+200A) to create a subtle, near-invisible separation
     // before the text. VS16 is intentionally omitted to keep spacing tighter
     // in terminals like Ghostty.
-    let lines: Vec<Line<'static>> = vec![vec![format!("■ {message}").red()].into()];
+    let lines: Vec<Line<'static>> =
+        vec![vec![format!("■ {message}").set_style(opencode_error_style())].into()];
     PlainHistoryCell { lines }
 }
 
@@ -2007,7 +2170,7 @@ impl HistoryCell for RequestUserInputResultCell {
         let mut header = vec!["•".dim(), " ".into(), "Questions".bold()];
         header.push(format!(" {answered}/{total} answered").dim());
         if self.interrupted {
-            header.push(" (interrupted)".cyan());
+            header.push(" (interrupted)".set_style(opencode_secondary_style()));
         }
 
         let mut lines: Vec<Line<'static>> = vec![header.into()];
@@ -2039,7 +2202,7 @@ impl HistoryCell for RequestUserInputResultCell {
                     width,
                     "    answer: ".dim(),
                     "            ".dim(),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(opencode_secondary()),
                 ));
                 continue;
             }
@@ -2052,7 +2215,7 @@ impl HistoryCell for RequestUserInputResultCell {
                     width,
                     "    answer: ".dim(),
                     "            ".dim(),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(opencode_secondary()),
                 ));
             }
             if let Some(note) = note {
@@ -2060,13 +2223,13 @@ impl HistoryCell for RequestUserInputResultCell {
                     (
                         "    note: ".dim(),
                         "          ".dim(),
-                        Style::default().fg(Color::Cyan),
+                        Style::default().fg(opencode_secondary()),
                     )
                 } else {
                     (
                         "    answer: ".dim(),
                         "            ".dim(),
-                        Style::default().fg(Color::Cyan),
+                        Style::default().fg(opencode_secondary()),
                     )
                 };
                 lines.extend(wrap_with_prefix(&note, width, label, continuation, style));
@@ -2078,9 +2241,15 @@ impl HistoryCell for RequestUserInputResultCell {
             lines.extend(wrap_with_prefix(
                 &summary,
                 width,
-                "  ↳ ".cyan().dim(),
+                "  ↳ ".set_style(
+                    Style::default()
+                        .fg(opencode_secondary())
+                        .add_modifier(Modifier::DIM),
+                ),
                 "    ".dim(),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(opencode_secondary())
+                    .add_modifier(Modifier::DIM),
             ));
         }
 
@@ -2217,7 +2386,12 @@ impl HistoryCell for PlanUpdateCell {
         let render_step = |status: &StepStatus, text: &str| -> Vec<Line<'static>> {
             let (box_str, step_style) = match status {
                 StepStatus::Completed => ("✔ ", Style::default().crossed_out().dim()),
-                StepStatus::InProgress => ("□ ", Style::default().cyan().bold()),
+                StepStatus::InProgress => (
+                    "□ ",
+                    Style::default()
+                        .fg(opencode_secondary())
+                        .add_modifier(Modifier::BOLD),
+                ),
                 StepStatus::Pending => ("□ ", Style::default().dim()),
             };
 
@@ -2274,7 +2448,9 @@ pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainHistoryCell {
     let mut lines: Vec<Line<'static>> = Vec::new();
 
     // Failure title
-    lines.push(Line::from("✘ Failed to apply patch".magenta().bold()));
+    lines.push(Line::from(
+        "✘ Failed to apply patch".set_style(opencode_accent_style().add_modifier(Modifier::BOLD)),
+    ));
 
     if !stderr.trim().is_empty() {
         let output = output_lines(
@@ -2523,9 +2699,12 @@ fn format_mcp_invocation<'a>(invocation: McpInvocation) -> Line<'a> {
         .unwrap_or_default();
 
     let invocation_spans = vec![
-        invocation.server.clone().cyan(),
+        invocation
+            .server
+            .clone()
+            .set_style(opencode_secondary_style()),
         ".".into(),
-        invocation.tool.cyan(),
+        invocation.tool.set_style(opencode_secondary_style()),
         "(".into(),
         args_str.dim(),
         ")".into(),

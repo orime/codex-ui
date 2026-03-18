@@ -47,6 +47,9 @@ use std::path::PathBuf;
 
 use unicode_width::UnicodeWidthChar;
 
+use crate::style::opencode_error;
+use crate::style::opencode_primary;
+
 /// Display width of a tab character in columns.
 const TAB_WIDTH: usize = 4;
 
@@ -392,9 +395,9 @@ fn collect_rows(changes: &HashMap<PathBuf, FileChange>) -> Vec<Row> {
 fn render_line_count_summary(added: usize, removed: usize) -> Vec<RtSpan<'static>> {
     let mut spans = Vec::new();
     spans.push("(".into());
-    spans.push(format!("+{added}").green());
+    spans.push(format!("+{added}").fg(opencode_primary()));
     spans.push(" ".into());
-    spans.push(format!("-{removed}").red());
+    spans.push(format!("-{removed}").fg(opencode_error()));
     spans.push(")".into());
     spans
 }
@@ -1239,7 +1242,7 @@ fn style_sign_del(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match theme {
-        DiffTheme::Light => Style::default().fg(Color::Red),
+        DiffTheme::Light => Style::default().fg(opencode_error()),
         DiffTheme::Dark => style_del(theme, color_level, diff_backgrounds),
     }
 }
@@ -1261,17 +1264,19 @@ fn style_add(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match (theme, color_level, diff_backgrounds.add) {
-        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(Color::Green),
+        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(opencode_primary()),
         (DiffTheme::Light, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Light, DiffColorLevel::Ansi256, Some(bg)) => Style::default().bg(bg),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Dark, DiffColorLevel::Ansi256, Some(bg)) => {
-            Style::default().fg(Color::Green).bg(bg)
+            Style::default().fg(opencode_primary()).bg(bg)
         }
         (DiffTheme::Light, DiffColorLevel::TrueColor, None)
         | (DiffTheme::Light, DiffColorLevel::Ansi256, None) => Style::default(),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, None)
-        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => Style::default().fg(Color::Green),
+        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => {
+            Style::default().fg(opencode_primary())
+        }
     }
 }
 
@@ -1285,17 +1290,17 @@ fn style_del(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match (theme, color_level, diff_backgrounds.del) {
-        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(Color::Red),
+        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(opencode_error()),
         (DiffTheme::Light, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Light, DiffColorLevel::Ansi256, Some(bg)) => Style::default().bg(bg),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Dark, DiffColorLevel::Ansi256, Some(bg)) => {
-            Style::default().fg(Color::Red).bg(bg)
+            Style::default().fg(opencode_error()).bg(bg)
         }
         (DiffTheme::Light, DiffColorLevel::TrueColor, None)
         | (DiffTheme::Light, DiffColorLevel::Ansi256, None) => Style::default(),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, None)
-        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => Style::default().fg(Color::Red),
+        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => Style::default().fg(opencode_error()),
     }
 }
 

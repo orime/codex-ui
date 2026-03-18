@@ -21,6 +21,7 @@ use ratatui::prelude::Widget;
 use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Block;
@@ -38,6 +39,11 @@ use crate::LoginStatus;
 use crate::onboarding::onboarding_screen::KeyboardHandler;
 use crate::onboarding::onboarding_screen::StepStateProvider;
 use crate::shimmer::shimmer_spans;
+use crate::style::opencode_error_style;
+use crate::style::opencode_info_style;
+use crate::style::opencode_primary;
+use crate::style::opencode_secondary;
+use crate::style::opencode_secondary_style;
 use crate::tui::FrameRequester;
 
 /// Marks buffer cells that have cyan+underlined style as an OSC 8 hyperlink.
@@ -313,8 +319,12 @@ impl AuthModeWidget {
 
             let line1 = if is_selected {
                 Line::from(vec![
-                    format!("{caret} {index}. ", index = idx + 1).cyan().dim(),
-                    text.to_string().cyan(),
+                    format!("{caret} {index}. ", index = idx + 1).set_style(
+                        Style::default()
+                            .fg(opencode_secondary())
+                            .add_modifier(Modifier::DIM),
+                    ),
+                    text.to_string().set_style(opencode_secondary_style()),
                 ])
             } else {
                 format!("  {index}. {text}", index = idx + 1).into()
@@ -322,7 +332,7 @@ impl AuthModeWidget {
 
             let line2 = if is_selected {
                 Line::from(format!("     {description}"))
-                    .fg(Color::Cyan)
+                    .fg(opencode_secondary())
                     .add_modifier(Modifier::DIM)
             } else {
                 Line::from(format!("     {description}"))
@@ -384,7 +394,7 @@ impl AuthModeWidget {
         );
         if let Some(err) = &self.error {
             lines.push("".into());
-            lines.push(err.as_str().red().into());
+            lines.push(err.as_str().set_style(opencode_error_style()).into());
         }
 
         Paragraph::new(lines)
@@ -412,12 +422,15 @@ impl AuthModeWidget {
             lines.push("".into());
             lines.push(Line::from(vec![
                 "  ".into(),
-                state.auth_url.as_str().cyan().underlined(),
+                state
+                    .auth_url
+                    .as_str()
+                    .set_style(opencode_info_style().underlined()),
             ]));
             lines.push("".into());
             lines.push(Line::from(vec![
                 "  On a remote or headless machine? Press Esc and choose ".into(),
-                "Sign in with Device Code".cyan(),
+                "Sign in with Device Code".set_style(opencode_secondary_style()),
                 ".".into(),
             ]));
             lines.push("".into());
@@ -440,7 +453,7 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success_message(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "✓ Signed in with your ChatGPT account".fg(Color::Green).into(),
+            "✓ Signed in with your ChatGPT account".fg(opencode_primary()).into(),
             "".into(),
             "  Before you start:".into(),
             "".into(),
@@ -461,7 +474,7 @@ impl AuthModeWidget {
             ])
             .dim(),
             "".into(),
-            "  Press Enter to continue".fg(Color::Cyan).into(),
+            "  Press Enter to continue".fg(opencode_secondary()).into(),
         ];
 
         Paragraph::new(lines)
@@ -472,7 +485,7 @@ impl AuthModeWidget {
     fn render_chatgpt_success(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
             "✓ Signed in with your ChatGPT account"
-                .fg(Color::Green)
+                .fg(opencode_primary())
                 .into(),
         ];
 
@@ -483,7 +496,7 @@ impl AuthModeWidget {
 
     fn render_api_key_configured(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "✓ API key configured".fg(Color::Green).into(),
+            "✓ API key configured".fg(opencode_primary()).into(),
             "".into(),
             "  Codex will use usage-based billing with your API key.".into(),
         ];
@@ -535,7 +548,7 @@ impl AuthModeWidget {
                     .title("API key")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .border_style(Style::default().fg(opencode_secondary())),
             )
             .render(input_area, buf);
 
@@ -545,7 +558,7 @@ impl AuthModeWidget {
         ];
         if let Some(error) = &self.error {
             footer_lines.push("".into());
-            footer_lines.push(error.as_str().red().into());
+            footer_lines.push(error.as_str().set_style(opencode_error_style()).into());
         }
         Paragraph::new(footer_lines)
             .wrap(Wrap { trim: false })

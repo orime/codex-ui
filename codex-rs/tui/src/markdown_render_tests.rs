@@ -1,4 +1,7 @@
 use pretty_assertions::assert_eq;
+use ratatui::style::Color;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -13,6 +16,51 @@ use insta::assert_snapshot;
 
 fn render_markdown_text_for_cwd(input: &str, cwd: &Path) -> Text<'static> {
     render_markdown_text_with_width_and_cwd(input, None, Some(cwd))
+}
+
+fn matrix_heading_style() -> Style {
+    Style::default()
+        .fg(Color::Rgb(0, 239, 255))
+        .add_modifier(Modifier::BOLD)
+}
+
+fn matrix_blockquote_style() -> Style {
+    Style::default().fg(Color::Rgb(140, 163, 145))
+}
+
+fn matrix_code_style() -> Style {
+    Style::default().fg(Color::Rgb(28, 194, 75))
+}
+
+fn matrix_strong_style() -> Style {
+    Style::default()
+        .fg(Color::Rgb(230, 255, 87))
+        .add_modifier(Modifier::BOLD)
+}
+
+fn matrix_emphasis_style() -> Style {
+    Style::default()
+        .fg(Color::Rgb(255, 168, 61))
+        .add_modifier(Modifier::ITALIC)
+}
+
+fn matrix_strong_emphasis_style() -> Style {
+    Style::default()
+        .fg(Color::Rgb(230, 255, 87))
+        .add_modifier(Modifier::BOLD)
+        .add_modifier(Modifier::ITALIC)
+}
+
+fn matrix_link_text_style() -> Style {
+    Style::default()
+        .fg(Color::Rgb(36, 246, 217))
+        .add_modifier(Modifier::UNDERLINED)
+}
+
+fn matrix_link_destination_style() -> Style {
+    Style::default()
+        .fg(Color::Rgb(48, 179, 255))
+        .add_modifier(Modifier::UNDERLINED)
 }
 
 #[test]
@@ -45,21 +93,55 @@ fn paragraph_multiple() {
 }
 
 #[test]
+fn enables_tables_and_task_lists() {
+    let md = "| 名称 | 类型 |\n| --- | --- |\n| Rust | 语言 |\n\n- [x] 已完成\n- [ ] 待处理\n";
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(rendered.contains("┌"));
+    assert!(rendered.contains("Rust"));
+    assert!(rendered.contains("[x]"));
+    assert!(rendered.contains("[ ]"));
+}
+
+#[test]
 fn headings() {
     let md = "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["# ".bold().underlined(), "Heading 1".bold().underlined()]),
+        Line::from_iter([
+            Span::styled("# ", matrix_heading_style()),
+            Span::styled("Heading 1", matrix_heading_style()),
+        ]),
         Line::default(),
-        Line::from_iter(["## ".bold(), "Heading 2".bold()]),
+        Line::from_iter([
+            Span::styled("## ", matrix_heading_style()),
+            Span::styled("Heading 2", matrix_heading_style()),
+        ]),
         Line::default(),
-        Line::from_iter(["### ".bold().italic(), "Heading 3".bold().italic()]),
+        Line::from_iter([
+            Span::styled("### ", matrix_heading_style()),
+            Span::styled("Heading 3", matrix_heading_style()),
+        ]),
         Line::default(),
-        Line::from_iter(["#### ".italic(), "Heading 4".italic()]),
+        Line::from_iter([
+            Span::styled("#### ", matrix_heading_style()),
+            Span::styled("Heading 4", matrix_heading_style()),
+        ]),
         Line::default(),
-        Line::from_iter(["##### ".italic(), "Heading 5".italic()]),
+        Line::from_iter([
+            Span::styled("##### ", matrix_heading_style()),
+            Span::styled("Heading 5", matrix_heading_style()),
+        ]),
         Line::default(),
-        Line::from_iter(["###### ".italic(), "Heading 6".italic()]),
+        Line::from_iter([
+            Span::styled("###### ", matrix_heading_style()),
+            Span::styled("Heading 6", matrix_heading_style()),
+        ]),
     ]);
     assert_eq!(text, expected);
 }
@@ -67,7 +149,7 @@ fn headings() {
 #[test]
 fn blockquote_single() {
     let text = render_markdown_text("> Blockquote");
-    let expected = Text::from(Line::from_iter(["> ", "Blockquote"]).green());
+    let expected = Text::from(Line::from_iter(["> ", "Blockquote"]).style(matrix_blockquote_style()));
     assert_eq!(text, expected);
 }
 
@@ -98,9 +180,9 @@ fn blockquote_soft_break() {
 fn blockquote_multiple_with_break() {
     let text = render_markdown_text("> Blockquote 1\n\n> Blockquote 2\n");
     let expected = Text::from_iter([
-        Line::from_iter(["> ", "Blockquote 1"]).green(),
+        Line::from_iter(["> ", "Blockquote 1"]).style(matrix_blockquote_style()),
         Line::default(),
-        Line::from_iter(["> ", "Blockquote 2"]).green(),
+        Line::from_iter(["> ", "Blockquote 2"]).style(matrix_blockquote_style()),
     ]);
     assert_eq!(text, expected);
 }
@@ -110,11 +192,11 @@ fn blockquote_three_paragraphs_short_lines() {
     let md = "> one\n>\n> two\n>\n> three\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["> ", "one"]).green(),
-        Line::from_iter(["> "]).green(),
-        Line::from_iter(["> ", "two"]).green(),
-        Line::from_iter(["> "]).green(),
-        Line::from_iter(["> ", "three"]).green(),
+        Line::from_iter(["> ", "one"]).style(matrix_blockquote_style()),
+        Line::from_iter(["> "]).style(matrix_blockquote_style()),
+        Line::from_iter(["> ", "two"]).style(matrix_blockquote_style()),
+        Line::from_iter(["> "]).style(matrix_blockquote_style()),
+        Line::from_iter(["> ", "three"]).style(matrix_blockquote_style()),
     ]);
     assert_eq!(text, expected);
 }
@@ -124,9 +206,9 @@ fn blockquote_nested_two_levels() {
     let md = "> Level 1\n>> Level 2\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["> ", "Level 1"]).green(),
-        Line::from_iter(["> "]).green(),
-        Line::from_iter(["> ", "> ", "Level 2"]).green(),
+        Line::from_iter(["> ", "Level 1"]).style(matrix_blockquote_style()),
+        Line::from_iter(["> "]).style(matrix_blockquote_style()),
+        Line::from_iter(["> ", "> ", "Level 2"]).style(matrix_blockquote_style()),
     ]);
     assert_eq!(text, expected);
 }
@@ -136,8 +218,8 @@ fn blockquote_with_list_items() {
     let md = "> - item 1\n> - item 2\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["> ", "- ", "item 1"]).green(),
-        Line::from_iter(["> ", "- ", "item 2"]).green(),
+        Line::from_iter(["> ", "- ", "item 1"]).style(matrix_blockquote_style()),
+        Line::from_iter(["> ", "- ", "item 2"]).style(matrix_blockquote_style()),
     ]);
     assert_eq!(text, expected);
 }
@@ -152,13 +234,13 @@ fn blockquote_with_ordered_list() {
             "1. ".light_blue(),
             Span::from("first"),
         ])
-        .green(),
+        .style(matrix_blockquote_style()),
         Line::from_iter(vec![
             Span::from("> "),
             "2. ".light_blue(),
             Span::from("second"),
         ])
-        .green(),
+        .style(matrix_blockquote_style()),
     ]);
     assert_eq!(text, expected);
 }
@@ -168,8 +250,8 @@ fn blockquote_list_then_nested_blockquote() {
     let md = "> - parent\n>   > child\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["> ", "- ", "parent"]).green(),
-        Line::from_iter(["> ", "  ", "> ", "child"]).green(),
+        Line::from_iter(["> ", "- ", "parent"]).style(matrix_blockquote_style()),
+        Line::from_iter(["> ", "  ", "> ", "child"]).style(matrix_blockquote_style()),
     ]);
     assert_eq!(text, expected);
 }
@@ -376,12 +458,12 @@ fn blockquote_heading_inherits_heading_style() {
         [
             Line::from_iter([
                 "> ".into(),
-                "# ".bold().underlined(),
-                "test header".bold().underlined(),
+                Span::styled("# ", matrix_heading_style()),
+                Span::styled("test header", matrix_heading_style()),
             ])
-            .green(),
-            Line::from_iter(["> "]).green(),
-            Line::from_iter(["> ", "in blockquote"]).green(),
+            .style(matrix_blockquote_style()),
+            Line::from_iter(["> "]).style(matrix_blockquote_style()),
+            Line::from_iter(["> ", "in blockquote"]).style(matrix_blockquote_style()),
         ]
     );
 }
@@ -609,7 +691,11 @@ fn ordered_item_with_indented_continuation_is_tight() {
 #[test]
 fn inline_code() {
     let text = render_markdown_text("Example of `Inline code`");
-    let expected = Line::from_iter(["Example of ".into(), "Inline code".cyan()]).into();
+    let expected = Line::from_iter([
+        "Example of ".into(),
+        Span::styled("Inline code", matrix_code_style()),
+    ])
+    .into();
     assert_eq!(text, expected);
 }
 
@@ -617,7 +703,7 @@ fn inline_code() {
 fn strong() {
     assert_eq!(
         render_markdown_text("**Strong**"),
-        Text::from(Line::from("Strong".bold()))
+        Text::from(Line::from(Span::styled("Strong", matrix_strong_style())))
     );
 }
 
@@ -625,7 +711,7 @@ fn strong() {
 fn emphasis() {
     assert_eq!(
         render_markdown_text("*Emphasis*"),
-        Text::from(Line::from("Emphasis".italic()))
+        Text::from(Line::from(Span::styled("Emphasis", matrix_emphasis_style())))
     );
 }
 
@@ -641,8 +727,8 @@ fn strikethrough() {
 fn strong_emphasis() {
     let text = render_markdown_text("**Strong *emphasis***");
     let expected = Text::from(Line::from_iter([
-        "Strong ".bold(),
-        "emphasis".bold().italic(),
+        Span::styled("Strong ", matrix_strong_style()),
+        Span::styled("emphasis", matrix_strong_emphasis_style()),
     ]));
     assert_eq!(text, expected);
 }
@@ -651,9 +737,9 @@ fn strong_emphasis() {
 fn link() {
     let text = render_markdown_text("[Link](https://example.com)");
     let expected = Text::from(Line::from_iter([
-        "Link".into(),
+        Span::styled("Link", matrix_link_text_style()),
         " (".into(),
-        "https://example.com".cyan().underlined(),
+        Span::styled("https://example.com", matrix_link_destination_style()),
         ")".into(),
     ]));
     assert_eq!(text, expected);
@@ -671,7 +757,10 @@ fn file_link_hides_destination() {
         "[codex-rs/tui/src/markdown_render.rs](/Users/example/code/codex/codex-rs/tui/src/markdown_render.rs)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected = Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -681,7 +770,10 @@ fn file_link_appends_line_number_when_label_lacks_it() {
         "[markdown_render.rs](/Users/example/code/codex/codex-rs/tui/src/markdown_render.rs:74)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected = Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -691,7 +783,10 @@ fn file_link_keeps_absolute_paths_outside_cwd() {
         "[README.md:74](/Users/example/code/codex/README.md:74)",
         Path::new("/Users/example/code/codex/codex-rs/tui"),
     );
-    let expected = Text::from(Line::from_iter(["/Users/example/code/codex/README.md:74".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "/Users/example/code/codex/README.md:74",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -701,8 +796,10 @@ fn file_link_appends_hash_anchor_when_label_lacks_it() {
         "[markdown_render.rs](file:///Users/example/code/codex/codex-rs/tui/src/markdown_render.rs#L74C3)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected =
-        Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74:3".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74:3",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -712,8 +809,10 @@ fn file_link_uses_target_path_for_hash_anchor() {
         "[markdown_render.rs#L74C3](file:///Users/example/code/codex/codex-rs/tui/src/markdown_render.rs#L74C3)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected =
-        Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74:3".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74:3",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -723,8 +822,10 @@ fn file_link_appends_range_when_label_lacks_it() {
         "[markdown_render.rs](/Users/example/code/codex/codex-rs/tui/src/markdown_render.rs:74:3-76:9)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected =
-        Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74:3-76:9".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74:3-76:9",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -734,8 +835,10 @@ fn file_link_uses_target_path_for_range() {
         "[markdown_render.rs:74:3-76:9](/Users/example/code/codex/codex-rs/tui/src/markdown_render.rs:74:3-76:9)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected =
-        Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74:3-76:9".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74:3-76:9",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -745,8 +848,10 @@ fn file_link_appends_hash_range_when_label_lacks_it() {
         "[markdown_render.rs](file:///Users/example/code/codex/codex-rs/tui/src/markdown_render.rs#L74C3-L76C9)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected =
-        Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74:3-76:9".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74:3-76:9",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -757,9 +862,12 @@ fn multiline_file_link_label_after_styled_prefix_does_not_panic() {
         Path::new("/Users/example/code/codex"),
     );
     let expected = Text::from(Line::from_iter([
-        "bold".bold(),
+        Span::styled("bold", matrix_strong_style()),
         " plain ".into(),
-        "codex-rs/tui/src/markdown_render.rs:74:3".cyan(),
+        Span::styled(
+            "codex-rs/tui/src/markdown_render.rs:74:3",
+            matrix_code_style(),
+        ),
     ]));
     assert_eq!(text, expected);
 }
@@ -770,8 +878,10 @@ fn file_link_uses_target_path_for_hash_range() {
         "[markdown_render.rs#L74C3-L76C9](file:///Users/example/code/codex/codex-rs/tui/src/markdown_render.rs#L74C3-L76C9)",
         Path::new("/Users/example/code/codex"),
     );
-    let expected =
-        Text::from(Line::from_iter(["codex-rs/tui/src/markdown_render.rs:74:3-76:9".cyan()]));
+    let expected = Text::from(Line::from_iter([Span::styled(
+        "codex-rs/tui/src/markdown_render.rs:74:3-76:9",
+        matrix_code_style(),
+    )]));
     assert_eq!(text, expected);
 }
 
@@ -779,9 +889,9 @@ fn file_link_uses_target_path_for_hash_range() {
 fn url_link_shows_destination() {
     let text = render_markdown_text("[docs](https://example.com/docs)");
     let expected = Text::from(Line::from_iter([
-        "docs".into(),
+        Span::styled("docs", matrix_link_text_style()),
         " (".into(),
-        "https://example.com/docs".cyan().underlined(),
+        Span::styled("https://example.com/docs", matrix_link_destination_style()),
         ")".into(),
     ]));
     assert_eq!(text, expected);

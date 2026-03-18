@@ -16,6 +16,11 @@ use std::cell::Cell;
 use crate::ascii_animation::AsciiAnimation;
 use crate::onboarding::onboarding_screen::KeyboardHandler;
 use crate::onboarding::onboarding_screen::StepStateProvider;
+use crate::style::opencode_accent;
+use crate::style::opencode_primary;
+use crate::style::opencode_secondary;
+use crate::style::opencode_text;
+use crate::style::opencode_text_muted;
 use crate::tui::FrameRequester;
 
 use super::onboarding_screen::StepState;
@@ -85,9 +90,25 @@ impl WidgetRef for &WelcomeWidget {
         }
         lines.push(Line::from(vec![
             "  ".into(),
-            "Welcome to ".into(),
-            "Codex".bold(),
-            ", OpenAI's command-line coding agent".into(),
+            "Welcome to ".fg(opencode_secondary()),
+            "Codex".fg(opencode_primary()).bold(),
+            " · ".fg(opencode_text_muted()),
+            "OpenAI's command-line coding agent"
+                .fg(opencode_text())
+                .bold(),
+        ]));
+        lines.push(Line::from(vec![
+            "  ".into(),
+            "Theme-aware syntax, richer diffs, and agent control in one terminal."
+                .fg(opencode_text_muted()),
+        ]));
+        lines.push(Line::from(vec![
+            "  ".into(),
+            "OpenCode palette".fg(opencode_primary()).bold(),
+            " with ".fg(opencode_text_muted()),
+            "secondary blue".fg(opencode_secondary()).bold(),
+            " and ".fg(opencode_text_muted()),
+            "accent violet".fg(opencode_accent()).bold(),
         ]));
 
         Paragraph::new(lines)

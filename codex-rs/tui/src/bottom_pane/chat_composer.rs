@@ -140,6 +140,7 @@ use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
 use ratatui::layout::Margin;
 use ratatui::layout::Rect;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -192,6 +193,8 @@ use crate::render::Insets;
 use crate::render::RectExt;
 use crate::render::renderable::Renderable;
 use crate::slash_command::SlashCommand;
+use crate::style::opencode_background;
+use crate::style::opencode_secondary;
 use crate::style::user_message_style;
 use codex_protocol::custom_prompts::CustomPrompt;
 use codex_protocol::custom_prompts::PROMPTS_CMD_PREFIX;
@@ -2649,9 +2652,15 @@ impl ChatComposer {
             .map(|(idx, _)| {
                 let label = local_image_label_text(idx + 1);
                 if self.selected_remote_image_index == Some(idx) {
-                    label.cyan().reversed().into()
+                    Line::from(label).style(
+                        ratatui::style::Style::default()
+                            .fg(opencode_background())
+                            .bg(opencode_secondary()),
+                    )
                 } else {
-                    label.cyan().into()
+                    label
+                        .set_style(ratatui::style::Style::default().fg(opencode_secondary()))
+                        .into()
                 }
             })
             .collect()

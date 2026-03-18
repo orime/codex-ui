@@ -17,7 +17,10 @@ use crate::key_hint::KeyBinding;
 use crate::line_truncation::truncate_line_with_ellipsis_if_overflow;
 use crate::render::Insets;
 use crate::render::RectExt as _;
-use crate::style::user_message_style;
+use crate::style::opencode_border;
+use crate::style::opencode_secondary;
+use crate::style::opencode_selected_style;
+use crate::style::opencode_surface_style;
 
 use super::scroll_state::ScrollState;
 
@@ -86,7 +89,10 @@ pub(crate) fn render_menu_surface(area: Rect, buf: &mut Buffer) -> Rect {
         return area;
     }
     Block::default()
-        .style(user_message_style())
+        .style(opencode_surface_style())
+        .border_style(Style::default().fg(opencode_border()))
+        .border_type(ratatui::widgets::BorderType::Rounded)
+        .borders(ratatui::widgets::Borders::ALL)
         .render(area, buf);
     menu_surface_inset(area)
 }
@@ -297,8 +303,9 @@ fn apply_row_state_style(lines: &mut [Line<'static>], selected: bool, is_disable
     if selected {
         for line in lines.iter_mut() {
             line.spans.iter_mut().for_each(|span| {
-                span.style = Style::default().fg(Color::Cyan).bold();
+                span.style = opencode_selected_style();
             });
+            line.style = Style::default().bg(opencode_primary_bg());
         }
     }
     if is_disabled {
@@ -308,6 +315,10 @@ fn apply_row_state_style(lines: &mut [Line<'static>], selected: bool, is_disable
             });
         }
     }
+}
+
+fn opencode_primary_bg() -> Color {
+    crate::style::opencode_primary()
 }
 
 fn compute_item_window_start(
@@ -721,7 +732,7 @@ pub(crate) fn render_rows_single_line(
         let mut full_line = build_full_line(row, desc_col);
         if Some(i) == state.selected_idx && !row.is_disabled {
             full_line.spans.iter_mut().for_each(|span| {
-                span.style = Style::default().fg(Color::Cyan).bold();
+                span.style = Style::default().fg(opencode_secondary()).bold();
             });
         }
         if row.is_disabled {

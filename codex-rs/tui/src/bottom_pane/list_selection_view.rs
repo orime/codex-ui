@@ -6,6 +6,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -18,6 +19,9 @@ use crate::app_event_sender::AppEventSender;
 use crate::key_hint::KeyBinding;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_primary;
+use crate::style::opencode_text;
+use crate::style::opencode_text_muted;
 
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;
@@ -245,8 +249,12 @@ impl ListSelectionView {
     pub fn new(params: SelectionViewParams, app_event_tx: AppEventSender) -> Self {
         let mut header = params.header;
         if params.title.is_some() || params.subtitle.is_some() {
-            let title = params.title.map(|title| Line::from(title.bold()));
-            let subtitle = params.subtitle.map(|subtitle| Line::from(subtitle.dim()));
+            let title = params
+                .title
+                .map(|title| Line::from(title.fg(opencode_primary()).bold()));
+            let subtitle = params
+                .subtitle
+                .map(|subtitle| Line::from(subtitle.fg(opencode_text_muted())));
             header = Box::new(ColumnRenderable::with([
                 header,
                 Box::new(title),
@@ -847,10 +855,13 @@ impl Renderable for ListSelectionView {
             let query_span: Span<'static> = if self.search_query.is_empty() {
                 self.search_placeholder
                     .as_ref()
-                    .map(|placeholder| placeholder.clone().dim())
+                    .map(|placeholder| placeholder.clone().fg(opencode_text_muted()))
                     .unwrap_or_else(|| "".into())
             } else {
-                self.search_query.clone().into()
+                Span::styled(
+                    self.search_query.clone(),
+                    Style::default().fg(opencode_text()),
+                )
             };
             Line::from(query_span).render(search_area, buf);
         }
@@ -976,7 +987,7 @@ impl Renderable for ListSelectionView {
                     width: hint_area.width.saturating_sub(2),
                     height: hint_area.height,
                 };
-                hint.clone().dim().render(hint_area, buf);
+                hint.clone().render(hint_area, buf);
             }
         }
     }
@@ -994,6 +1005,7 @@ mod tests {
     use ratatui::layout::Rect;
     use ratatui::style::Color;
     use ratatui::style::Style;
+    use ratatui::style::Styled;
     use tokio::sync::mpsc::unbounded_channel;
 
     struct MarkerRenderable {
@@ -1243,7 +1255,7 @@ mod tests {
         }];
         let footer_note = Line::from(vec![
             "Note: ".dim(),
-            "Use /setup-default-sandbox".cyan(),
+            "Use /setup-default-sandbox".set_style(crate::style::opencode_info_style()),
             " to allow network access.".dim(),
         ]);
         let view = ListSelectionView::new(

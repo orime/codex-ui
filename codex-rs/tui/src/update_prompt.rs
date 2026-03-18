@@ -7,6 +7,8 @@ use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::render::renderable::RenderableExt as _;
 use crate::selection_list::selection_option_row;
+use crate::style::opencode_info_style;
+use crate::style::opencode_primary_style;
 use crate::tui::FrameRequester;
 use crate::tui::Tui;
 use crate::tui::TuiEvent;
@@ -21,6 +23,7 @@ use crossterm::event::KeyModifiers;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
+use ratatui::style::Styled;
 use ratatui::style::Stylize as _;
 use ratatui::text::Line;
 use ratatui::widgets::Clear;
@@ -190,7 +193,7 @@ impl WidgetRef for &UpdatePromptScreen {
 
         column.push("");
         column.push(Line::from(vec![
-            padded_emoji("  ✨").bold().cyan(),
+            padded_emoji("  ✨").set_style(opencode_primary_style().bold()),
             "Update available!".bold(),
             " ".into(),
             format!(
@@ -205,8 +208,7 @@ impl WidgetRef for &UpdatePromptScreen {
             Line::from(vec![
                 "Release notes: ".dim(),
                 "https://github.com/openai/codex/releases/latest"
-                    .dim()
-                    .underlined(),
+                    .set_style(opencode_info_style().underlined()),
             ])
             .inset(Insets::tlbr(0, 2, 0, 0)),
         );

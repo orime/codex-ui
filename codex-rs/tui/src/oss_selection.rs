@@ -1,6 +1,12 @@
 use std::io;
 use std::sync::LazyLock;
 
+use crate::style::opencode_background;
+use crate::style::opencode_error;
+use crate::style::opencode_info;
+use crate::style::opencode_primary;
+use crate::style::opencode_secondary;
+use crate::style::opencode_warning;
 use codex_core::DEFAULT_LMSTUDIO_PORT;
 use codex_core::DEFAULT_OLLAMA_PORT;
 use codex_core::LMSTUDIO_OSS_PROVIDER_ID;
@@ -110,7 +116,7 @@ impl OssSelectionWidget<'_> {
 
         let mut contents: Vec<Line> = vec![
             Line::from(vec![
-                "? ".fg(Color::Blue),
+                "? ".fg(opencode_info()),
                 "Select an open-source provider".bold(),
             ]),
             Line::from(""),
@@ -243,7 +249,9 @@ impl WidgetRef for &OssSelectionWidget<'_> {
             .enumerate()
             .map(|(idx, opt)| {
                 let style = if idx == self.selected_option {
-                    Style::new().bg(Color::Cyan).fg(Color::Black)
+                    Style::new()
+                        .bg(opencode_secondary())
+                        .fg(opencode_background())
                 } else {
                     Style::new().bg(Color::DarkGray)
                 };
@@ -281,9 +289,9 @@ impl WidgetRef for &OssSelectionWidget<'_> {
 
 fn get_status_symbol_and_color(status: &ProviderStatus) -> (&'static str, Color) {
     match status {
-        ProviderStatus::Running => ("●", Color::Green),
-        ProviderStatus::NotRunning => ("○", Color::Red),
-        ProviderStatus::Unknown => ("?", Color::Yellow),
+        ProviderStatus::Running => ("●", opencode_primary()),
+        ProviderStatus::NotRunning => ("○", opencode_error()),
+        ProviderStatus::Unknown => ("?", opencode_warning()),
     }
 }
 

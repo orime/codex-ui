@@ -7,6 +7,20 @@
 
 use crate::render::highlight::highlight_code_to_lines;
 use crate::render::line_utils::line_to_static;
+use crate::style::opencode_accent;
+use crate::style::opencode_code_block_background;
+use crate::style::opencode_inline_code_background;
+use crate::style::opencode_markdown_blockquote;
+use crate::style::opencode_markdown_emphasis;
+use crate::style::opencode_markdown_heading;
+use crate::style::opencode_markdown_link;
+use crate::style::opencode_markdown_link_text;
+use crate::style::opencode_markdown_list_enumeration;
+use crate::style::opencode_markdown_list_item;
+use crate::style::opencode_markdown_strong;
+use crate::style::opencode_markdown_text;
+use crate::style::opencode_text_muted;
+use crate::style::opencode_text_emphasis;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use codex_utils_string::normalize_markdown_hash_location_suffix;
@@ -27,6 +41,7 @@ use regex_lite::Regex;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
+use unicode_width::UnicodeWidthStr;
 use url::Url;
 
 struct MarkdownStyles {
@@ -42,7 +57,8 @@ struct MarkdownStyles {
     strikethrough: Style,
     ordered_list_marker: Style,
     unordered_list_marker: Style,
-    link: Style,
+    link_text: Style,
+    link_destination: Style,
     blockquote: Style,
 }
 
@@ -50,21 +66,36 @@ impl Default for MarkdownStyles {
     fn default() -> Self {
         use ratatui::style::Stylize;
 
+        let heading = Style::default()
+            .fg(opencode_markdown_heading())
+            .add_modifier(ratatui::style::Modifier::BOLD);
+        let heading_level_two = Style::default()
+            .fg(opencode_accent())
+            .add_modifier(ratatui::style::Modifier::BOLD);
         Self {
-            h1: Style::new().bold().underlined(),
-            h2: Style::new().bold(),
-            h3: Style::new().bold().italic(),
-            h4: Style::new().italic(),
-            h5: Style::new().italic(),
-            h6: Style::new().italic(),
-            code: Style::new().cyan(),
-            emphasis: Style::new().italic(),
-            strong: Style::new().bold(),
-            strikethrough: Style::new().crossed_out(),
-            ordered_list_marker: Style::new().light_blue(),
-            unordered_list_marker: Style::new(),
-            link: Style::new().cyan().underlined(),
-            blockquote: Style::new().green(),
+            h1: heading,
+            h2: heading_level_two,
+            h3: heading,
+            h4: heading,
+            h5: heading,
+            h6: heading,
+            code: Style::default()
+                .fg(opencode_text_emphasis())
+                .bg(opencode_inline_code_background()),
+            emphasis: Style::default().fg(opencode_markdown_emphasis()).italic(),
+            strong: Style::default()
+                .fg(opencode_markdown_strong())
+                .add_modifier(ratatui::style::Modifier::BOLD),
+            strikethrough: Style::default().crossed_out(),
+            ordered_list_marker: Style::default().fg(opencode_markdown_list_enumeration()),
+            unordered_list_marker: Style::default().fg(opencode_markdown_list_item()),
+            link_text: Style::default()
+                .fg(opencode_markdown_link_text())
+                .add_modifier(ratatui::style::Modifier::UNDERLINED),
+            link_destination: Style::default()
+                .fg(opencode_markdown_link())
+                .add_modifier(ratatui::style::Modifier::UNDERLINED),
+            blockquote: Style::default().fg(opencode_markdown_blockquote()),
         }
     }
 }
@@ -84,6 +115,15 @@ impl IndentContext {
             is_list,
         }
     }
+}
+
+#[derive(Clone, Debug, Default)]
+struct TableState {
+    rows: Vec<(bool, Vec<String>)>,
+    current_row: Vec<String>,
+    current_cell: String,
+    in_header: bool,
+    current_row_is_header: bool,
 }
 
 pub fn render_markdown_text(input: &str) -> Text<'static> {
@@ -108,6 +148,8 @@ pub(crate) fn render_markdown_text_with_width_and_cwd(
 ) -> Text<'static> {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_TASKLISTS);
     let parser = Parser::new_ext(input, options);
     let mut w = Writer::new(parser, width, cwd);
     w.run();
@@ -165,6 +207,9 @@ where
     cwd: Option<PathBuf>,
     line_ends_with_local_link_target: bool,
     pending_local_link_soft_break: bool,
+    pending_list_lead_highlight: bool,
+    table_state: Option<TableState>,
+    in_math_block: bool,
     current_line_content: Option<Line<'static>>,
     current_initial_indent: Vec<Span<'static>>,
     current_subsequent_indent: Vec<Span<'static>>,
@@ -195,6 +240,9 @@ where
             cwd: cwd.map(Path::to_path_buf),
             line_ends_with_local_link_target: false,
             pending_local_link_soft_break: false,
+            pending_list_lead_highlight: false,
+            table_state: None,
+            in_math_block: false,
             current_line_content: None,
             current_initial_indent: Vec::new(),
             current_subsequent_indent: Vec::new(),
@@ -220,17 +268,24 @@ where
             Event::SoftBreak => self.soft_break(),
             Event::HardBreak => self.hard_break(),
             Event::Rule => {
+                if self.table_state.is_some() {
+                    self.push_table_text("---");
+                    return;
+                }
                 self.flush_current_line();
                 if !self.text.lines.is_empty() {
                     self.push_blank_line();
                 }
-                self.push_line(Line::from("———"));
+                self.push_line(Line::from(vec![Span::styled(
+                    "---",
+                    Style::default().fg(opencode_accent()),
+                )]));
                 self.needs_newline = true;
             }
             Event::Html(html) => self.html(html, /*inline*/ false),
             Event::InlineHtml(html) => self.html(html, /*inline*/ true),
             Event::FootnoteReference(_) => {}
-            Event::TaskListMarker(_) => {}
+            Event::TaskListMarker(checked) => self.task_list_marker(checked),
         }
     }
 
@@ -269,16 +324,16 @@ where
             }
             Tag::List(start) => self.start_list(start),
             Tag::Item => self.start_item(),
+            Tag::Table(_) => self.start_table(),
+            Tag::TableHead => self.start_table_head(),
+            Tag::TableRow => self.start_table_row(),
+            Tag::TableCell => self.start_table_cell(),
             Tag::Emphasis => self.push_inline_style(self.styles.emphasis),
             Tag::Strong => self.push_inline_style(self.styles.strong),
             Tag::Strikethrough => self.push_inline_style(self.styles.strikethrough),
             Tag::Link { dest_url, .. } => self.push_link(dest_url.to_string()),
             Tag::HtmlBlock
             | Tag::FootnoteDefinition(_)
-            | Tag::Table(_)
-            | Tag::TableHead
-            | Tag::TableRow
-            | Tag::TableCell
             | Tag::Image { .. }
             | Tag::MetadataBlock(_) => {}
         }
@@ -294,15 +349,16 @@ where
             TagEnd::Item => {
                 self.indent_stack.pop();
                 self.pending_marker_line = false;
+                self.pending_list_lead_highlight = false;
             }
+            TagEnd::Table => self.end_table(),
+            TagEnd::TableHead => self.end_table_head(),
+            TagEnd::TableRow => self.end_table_row(),
+            TagEnd::TableCell => self.end_table_cell(),
             TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough => self.pop_inline_style(),
             TagEnd::Link => self.pop_link(),
             TagEnd::HtmlBlock
             | TagEnd::FootnoteDefinition
-            | TagEnd::Table
-            | TagEnd::TableHead
-            | TagEnd::TableRow
-            | TagEnd::TableCell
             | TagEnd::Image
             | TagEnd::MetadataBlock(_) => {}
         }
@@ -321,6 +377,7 @@ where
         self.needs_newline = true;
         self.in_paragraph = false;
         self.pending_marker_line = false;
+        self.pending_list_lead_highlight = false;
     }
 
     fn start_heading(&mut self, level: HeadingLevel) {
@@ -365,6 +422,10 @@ where
     }
 
     fn text(&mut self, text: CowStr<'a>) {
+        if self.table_state.is_some() {
+            self.push_table_text(&text.replace('\n', " "));
+            return;
+        }
         if self.suppressing_local_link_label() {
             return;
         }
@@ -407,17 +468,19 @@ where
             if i > 0 {
                 self.push_line(Line::default());
             }
-            let content = line.to_string();
-            let span = Span::styled(
-                content,
-                self.inline_styles.last().copied().unwrap_or_default(),
-            );
-            self.push_span(span);
+            if self.try_render_list_lead(line) {
+                continue;
+            }
+            self.push_text_with_math_highlighting(line);
         }
         self.needs_newline = false;
     }
 
     fn code(&mut self, code: CowStr<'a>) {
+        if self.table_state.is_some() {
+            self.push_table_text(&code);
+            return;
+        }
         if self.suppressing_local_link_label() {
             return;
         }
@@ -431,6 +494,10 @@ where
     }
 
     fn html(&mut self, html: CowStr<'a>, inline: bool) {
+        if self.table_state.is_some() {
+            self.push_table_text(&html.replace('\n', " "));
+            return;
+        }
         if self.suppressing_local_link_label() {
             return;
         }
@@ -444,13 +511,21 @@ where
             if i > 0 {
                 self.push_line(Line::default());
             }
-            let style = self.inline_styles.last().copied().unwrap_or_default();
+            let style = self
+                .inline_styles
+                .last()
+                .copied()
+                .unwrap_or_else(|| Style::default().fg(opencode_markdown_text()));
             self.push_span(Span::styled(line.to_string(), style));
         }
         self.needs_newline = !inline;
     }
 
     fn hard_break(&mut self) {
+        if self.table_state.is_some() {
+            self.push_table_text(" ");
+            return;
+        }
         if self.suppressing_local_link_label() {
             return;
         }
@@ -459,6 +534,10 @@ where
     }
 
     fn soft_break(&mut self) {
+        if self.table_state.is_some() {
+            self.push_table_text(" ");
+            return;
+        }
         if self.suppressing_local_link_label() {
             return;
         }
@@ -485,6 +564,7 @@ where
 
     fn start_item(&mut self) {
         self.pending_marker_line = true;
+        self.pending_list_lead_highlight = true;
         let depth = self.list_indices.len();
         let is_ordered = self
             .list_indices
@@ -521,6 +601,81 @@ where
             /*is_list*/ true,
         ));
         self.needs_newline = false;
+    }
+
+    fn task_list_marker(&mut self, checked: bool) {
+        if self.table_state.is_some() {
+            self.push_table_text(if checked { "[x] " } else { "[ ] " });
+            return;
+        }
+        if self.pending_marker_line {
+            self.push_line(Line::default());
+            self.pending_marker_line = false;
+        }
+        self.push_span(Span::styled(
+            if checked { "[x] " } else { "[ ] " },
+            self.styles.strong,
+        ));
+    }
+
+    fn start_table(&mut self) {
+        self.flush_current_line();
+        if !self.text.lines.is_empty() {
+            self.push_blank_line();
+        }
+        self.table_state = Some(TableState::default());
+        self.needs_newline = false;
+    }
+
+    fn end_table(&mut self) {
+        if let Some(table) = self.table_state.take() {
+            self.flush_current_line();
+            for line in self.render_table(&table) {
+                self.text.lines.push(line);
+            }
+            self.needs_newline = true;
+        }
+    }
+
+    fn start_table_head(&mut self) {
+        if let Some(table) = self.table_state.as_mut() {
+            table.in_header = true;
+        }
+    }
+
+    fn end_table_head(&mut self) {
+        if let Some(table) = self.table_state.as_mut() {
+            table.in_header = false;
+        }
+    }
+
+    fn start_table_row(&mut self) {
+        if let Some(table) = self.table_state.as_mut() {
+            table.current_row.clear();
+            table.current_row_is_header = table.in_header;
+        }
+    }
+
+    fn end_table_row(&mut self) {
+        if let Some(table) = self.table_state.as_mut()
+            && !table.current_row.is_empty()
+        {
+            let row = std::mem::take(&mut table.current_row);
+            table.rows.push((table.current_row_is_header, row));
+        }
+    }
+
+    fn start_table_cell(&mut self) {
+        if let Some(table) = self.table_state.as_mut() {
+            table.current_cell.clear();
+        }
+    }
+
+    fn end_table_cell(&mut self) {
+        if let Some(table) = self.table_state.as_mut() {
+            table.current_row.push(table.current_cell.trim().to_string());
+            table.current_cell.clear();
+        }
     }
 
     fn start_codeblock(&mut self, lang: Option<String>, indent: Option<Span<'static>>) {
@@ -591,13 +746,25 @@ where
             },
             destination: dest_url,
         });
+        self.push_inline_style(self.styles.link_text);
     }
 
     fn pop_link(&mut self) {
+        self.pop_inline_style();
         if let Some(link) = self.link.take() {
+            if self.table_state.is_some() {
+                if link.show_destination {
+                    self.push_table_text(" (");
+                    self.push_table_text(&link.destination);
+                    self.push_table_text(")");
+                } else if let Some(local_target_display) = link.local_target_display {
+                    self.push_table_text(&local_target_display);
+                }
+                return;
+            }
             if link.show_destination {
                 self.push_span(" (".into());
-                self.push_span(Span::styled(link.destination, self.styles.link));
+                self.push_span(Span::styled(link.destination, self.styles.link_destination));
                 self.push_span(")".into());
             } else if let Some(local_target_display) = link.local_target_display {
                 if self.pending_marker_line {
@@ -622,6 +789,108 @@ where
             .as_ref()
             .and_then(|link| link.local_target_display.as_ref())
             .is_some()
+    }
+
+    fn push_table_text(&mut self, text: &str) {
+        if let Some(table) = self.table_state.as_mut() {
+            table.current_cell.push_str(text);
+        }
+    }
+
+    fn push_text_with_math_highlighting(&mut self, line: &str) {
+        let base_style = self.base_inline_style();
+        let math_style = Style::default().fg(opencode_accent());
+        let trimmed = line.trim();
+        if trimmed == "$$" {
+            self.push_span(Span::styled(line.to_string(), math_style));
+            self.in_math_block = !self.in_math_block;
+            return;
+        }
+        if self.in_math_block {
+            self.push_span(Span::styled(line.to_string(), math_style));
+            return;
+        }
+
+        let mut cursor = 0usize;
+        while let Some(start_rel) = line[cursor..].find('$') {
+            let start = cursor + start_rel;
+            let delimiter_len = if line[start..].starts_with("$$") { 2 } else { 1 };
+            let search_from = start + delimiter_len;
+            let closing = line[search_from..]
+                .find(if delimiter_len == 2 { "$$" } else { "$" })
+                .map(|idx| search_from + idx);
+
+            let Some(end) = closing else {
+                break;
+            };
+
+            if start > cursor {
+                self.push_span(Span::styled(line[cursor..start].to_string(), base_style));
+            }
+
+            let end_exclusive = end + delimiter_len;
+            self.push_span(Span::styled(
+                line[start..end_exclusive].to_string(),
+                math_style,
+            ));
+            cursor = end_exclusive;
+        }
+
+        if cursor < line.len() {
+            self.push_span(Span::styled(line[cursor..].to_string(), base_style));
+        }
+    }
+
+    fn base_inline_style(&self) -> Style {
+        self.inline_styles
+            .last()
+            .copied()
+            .unwrap_or_else(|| Style::default().fg(opencode_markdown_text()))
+    }
+
+    fn try_render_list_lead(&mut self, line: &str) -> bool {
+        if !self.pending_list_lead_highlight || line.trim().is_empty() || !self.inline_styles.is_empty() {
+            return false;
+        }
+
+        let base_style = self.base_inline_style();
+        let highlight_style = self.styles.strong;
+        let trimmed = line.trim_start();
+        let leading_ws = line.len().saturating_sub(trimmed.len());
+
+        if leading_ws > 0 {
+            self.push_span(Span::styled(line[..leading_ws].to_string(), base_style));
+        }
+
+        if let Some(colon_idx) = trimmed.find(['：', ':']).filter(|idx| *idx > 0 && *idx <= 20) {
+            let label = &trimmed[..colon_idx];
+            let label_char_count = label.chars().count();
+            let looks_like_label = label_char_count <= 12
+                && !label.chars().any(|c| {
+                    matches!(c, '，' | ',' | '。' | '.' | '？' | '?' | '！' | '!' | '；' | ';')
+                })
+                && !label.chars().any(char::is_whitespace)
+                && !label.starts_with('[');
+            if !looks_like_label {
+                self.pending_list_lead_highlight = false;
+                return false;
+            }
+            let delimiter_width = trimmed[colon_idx..]
+                .chars()
+                .next()
+                .map(char::len_utf8)
+                .unwrap_or(1);
+            let split = colon_idx + delimiter_width;
+            self.push_span(Span::styled(trimmed[..split].to_string(), highlight_style));
+            if split < trimmed.len() {
+                self.push_span(Span::styled(trimmed[split..].to_string(), base_style));
+            }
+            self.pending_list_lead_highlight = false;
+            return true;
+        }
+
+        self.pending_list_lead_highlight = false;
+        false
     }
 
     fn flush_current_line(&mut self) {
@@ -651,13 +920,99 @@ where
         }
     }
 
+    fn render_table(&self, table: &TableState) -> Vec<Line<'static>> {
+        if table.rows.is_empty() {
+            return Vec::new();
+        }
+
+        let col_count = table.rows.iter().map(|(_, row)| row.len()).max().unwrap_or(0);
+        if col_count == 0 {
+            return Vec::new();
+        }
+
+        let mut widths = vec![0usize; col_count];
+        for (_, row) in &table.rows {
+            for (idx, cell) in row.iter().enumerate() {
+                widths[idx] = widths[idx].max(UnicodeWidthStr::width(cell.as_str()).max(2));
+            }
+        }
+
+        let border_style = Style::default().fg(opencode_text_muted());
+        let header_style = self
+            .styles
+            .h3
+            .patch(Style::default().fg(opencode_markdown_heading()));
+        let body_style = Style::default().fg(opencode_markdown_text());
+
+        let mut out = Vec::new();
+        out.push(self.render_table_border('┌', '┬', '┐', &widths, border_style));
+
+        for (row_idx, (is_header, row)) in table.rows.iter().enumerate() {
+            out.push(self.render_table_row(
+                row,
+                &widths,
+                if *is_header { header_style } else { body_style },
+                border_style,
+            ));
+            let next_is_header = table.rows.get(row_idx + 1).is_some_and(|(header, _)| *header);
+            if *is_header && !next_is_header {
+                out.push(self.render_table_border('├', '┼', '┤', &widths, border_style));
+            } else if row_idx + 1 < table.rows.len() {
+                out.push(self.render_table_border('├', '┼', '┤', &widths, border_style));
+            }
+        }
+
+        out.push(self.render_table_border('└', '┴', '┘', &widths, border_style));
+        out
+    }
+
+    fn render_table_border(
+        &self,
+        left: char,
+        mid: char,
+        right: char,
+        widths: &[usize],
+        style: Style,
+    ) -> Line<'static> {
+        let mut text = String::new();
+        text.push(left);
+        for (idx, width) in widths.iter().enumerate() {
+            text.push_str(&"─".repeat(width + 2));
+            text.push(if idx + 1 == widths.len() { right } else { mid });
+        }
+        Line::from(vec![Span::styled(text, style)])
+    }
+
+    fn render_table_row(
+        &self,
+        row: &[String],
+        widths: &[usize],
+        cell_style: Style,
+        border_style: Style,
+    ) -> Line<'static> {
+        let mut spans = Vec::with_capacity(widths.len() * 4 + 1);
+        spans.push(Span::styled("│", border_style));
+        for (idx, width) in widths.iter().enumerate() {
+            let cell = row.get(idx).cloned().unwrap_or_default();
+            let padding = width.saturating_sub(UnicodeWidthStr::width(cell.as_str()));
+            spans.push(Span::styled(" ", border_style));
+            spans.push(Span::styled(format!("{cell}{}", " ".repeat(padding)), cell_style));
+            spans.push(Span::styled(" ", border_style));
+            spans.push(Span::styled("│", border_style));
+        }
+        Line::from(spans)
+    }
+
     fn push_line(&mut self, line: Line<'static>) {
         self.flush_current_line();
         let blockquote_active = self
             .indent_stack
             .iter()
             .any(|ctx| ctx.prefix.iter().any(|s| s.content.contains('>')));
-        let style = if blockquote_active {
+        let style = if self.in_code_block {
+            line.style
+                .patch(Style::default().bg(opencode_code_block_background()))
+        } else if blockquote_active {
             self.styles.blockquote
         } else {
             line.style

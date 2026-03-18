@@ -34,6 +34,9 @@ use crate::pager_overlay::Overlay;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::Renderable;
 use crate::resume_picker::SessionSelection;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_info_style;
+use crate::style::opencode_secondary_style;
 use crate::tui;
 use crate::tui::TuiEvent;
 use crate::update_action::UpdateAction;
@@ -86,6 +89,7 @@ use color_eyre::eyre::WrapErr;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
@@ -1844,7 +1848,10 @@ impl App {
         if let Some(summary) = summary {
             let mut lines: Vec<Line<'static>> = vec![summary.usage_line.clone().into()];
             if let Some(command) = summary.resume_command {
-                let spans = vec!["To continue this session, run ".into(), command.cyan()];
+                let spans = vec![
+                    "To continue this session, run ".into(),
+                    command.set_style(opencode_secondary_style()),
+                ];
                 lines.push(spans.into());
             }
             self.chat_widget.add_plain_history_lines(lines);
@@ -2499,7 +2506,7 @@ impl App {
                                     if let Some(command) = summary.resume_command {
                                         let spans = vec![
                                             "To continue this session, run ".into(),
-                                            command.cyan(),
+                                            command.set_style(opencode_secondary_style()),
                                         ];
                                         lines.push(spans.into());
                                     }
@@ -2533,8 +2540,9 @@ impl App {
                     self.chat_widget.thread_id(),
                     self.chat_widget.thread_name(),
                 );
-                self.chat_widget
-                    .add_plain_history_lines(vec!["/fork".magenta().into()]);
+                self.chat_widget.add_plain_history_lines(vec![
+                    "/fork".set_style(opencode_accent_style()).into(),
+                ]);
                 if let Some(path) = self.chat_widget.rollout_path() {
                     self.refresh_in_memory_config_from_disk_best_effort("forking the thread")
                         .await;
@@ -2570,7 +2578,7 @@ impl App {
                                     if let Some(command) = summary.resume_command {
                                         let spans = vec![
                                             "To continue this session, run ".into(),
-                                            command.cyan(),
+                                            command.set_style(opencode_secondary_style()),
                                         ];
                                         lines.push(spans.into());
                                     }
@@ -3086,7 +3094,9 @@ impl App {
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"
-                                            .dark_gray(),
+                                            .set_style(ratatui::style::Style::default().fg(
+                                                crate::style::opencode_text_muted(),
+                                            )),
                                     ]),
                                 ]);
                             }
@@ -3640,7 +3650,7 @@ impl App {
                     {
                         lines.push(Line::from(vec![
                             "Permission rule: ".into(),
-                            rule_line.cyan(),
+                            rule_line.set_style(opencode_info_style()),
                         ]));
                     }
                     self.overlay = Some(Overlay::new_static_with_renderables(

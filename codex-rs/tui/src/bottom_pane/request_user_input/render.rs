@@ -1,5 +1,6 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -18,6 +19,7 @@ use crate::bottom_pane::selection_popup_common::render_menu_surface;
 use crate::bottom_pane::selection_popup_common::render_rows;
 use crate::bottom_pane::selection_popup_common::wrap_styled_line;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_secondary;
 
 use super::DESIRED_SPACERS_BETWEEN_SECTIONS;
 use super::RequestUserInputOverlay;
@@ -291,7 +293,7 @@ impl RequestUserInputOverlay {
             let question_line = if answered {
                 Line::from(line.clone())
             } else {
-                Line::from(line.clone()).cyan()
+                Line::from(line.clone()).fg(opencode_secondary())
             };
             Paragraph::new(question_line).render(
                 Rect {
@@ -366,7 +368,12 @@ impl RequestUserInputOverlay {
                     spans.push(TIP_SEPARATOR.into());
                 }
                 if tip.highlight {
-                    spans.push(tip.text.cyan().bold().not_dim());
+                    spans.push(
+                        tip.text
+                            .set_style(ratatui::style::Style::default().fg(opencode_secondary()))
+                            .bold()
+                            .not_dim(),
+                    );
                 } else {
                     spans.push(tip.text.into());
                 }

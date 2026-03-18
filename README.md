@@ -1,60 +1,151 @@
-<p align="center"><code>npm i -g @openai/codex</code><br />or <code>brew install --cask codex</code></p>
-<p align="center"><strong>Codex CLI</strong> is a coding agent from OpenAI that runs locally on your computer.
-<p align="center">
-  <img src="https://github.com/openai/codex/blob/main/.github/codex-cli-splash.png" alt="Codex CLI splash" width="80%" />
-</p>
-</br>
-If you want Codex in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE.</a>
-</br>If you want the desktop app experience, run <code>codex app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the Codex App page</a>.
-</br>If you are looking for the <em>cloud-based agent</em> from OpenAI, <strong>Codex Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a>.</p>
+# codex-ui
 
----
+`codex-ui` 是基于 [openai/codex](https://github.com/openai/codex) 的 UI 定制发行版。
 
-## Quickstart
+目标很直接：
 
-### Installing and running Codex CLI
+- 保持官方 `codex` 的核心行为、认证方式和使用习惯
+- 单独提供一个平行命令 `codex-ui`
+- 重点修改 TUI 视觉、Markdown 渲染和 `opencode matrix` 风格主题
+- 不覆盖用户原本安装的 `codex`
 
-Install globally with your preferred package manager:
+这个仓库以 Apache-2.0 许可的上游 Codex 为基础维护，当前本地基线来自上游提交 `a3613035f32a45146297a74e058a8c70b91c56c2`。
 
-```shell
-# Install using npm
-npm install -g @openai/codex
+## 适合谁
+
+- 你已经在用官方 `codex`，但嫌终端 UI 太素
+- 你想要接近 `opencode matrix` 的配色和 Markdown 层次
+- 你希望保留 `~/.codex` 的登录态、配置和工作流
+
+## 这个发行版改了什么
+
+- TUI 公共配色和 surface 风格
+- Markdown 标题、粗体、斜体、链接、引用、任务列表、表格、数学片段渲染
+- 代码块和行内代码层次
+- 选择弹窗、状态条、会话区域等视觉细节
+- 附带 `opencode-matrix.tmTheme`
+
+## 这个发行版没改什么
+
+- 模型调用方式
+- 登录和认证逻辑
+- 命令语义
+- 工作目录、sandbox、approval 等行为
+
+换句话说，日常使用上可以把它理解成：
+
+- `codex` 是官方原版
+- `codex-ui` 是 UI 强化版
+
+## 安装
+
+### 一键安装
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install-codex-ui.sh | sh
 ```
 
-```shell
-# Install using Homebrew
-brew install --cask codex
+默认会做这些事：
+
+- 下载当前平台对应的 `codex-ui` Release 包
+- 安装 `codex-ui` 和 `codex-ui-bin` 到 `~/.local/bin`
+- 安装 `opencode-matrix.tmTheme` 到 `~/.codex/themes`
+- 不覆盖已有的 `codex`
+
+安装完成后直接运行：
+
+```sh
+codex-ui
 ```
 
-Then simply run `codex` to get started.
+### 手动安装
 
-<details>
-<summary>You can also go to the <a href="https://github.com/openai/codex/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
+从 GitHub Releases 下载你平台对应的压缩包，解压后会得到：
 
-Each GitHub Release contains many executables, but in practice, you likely want one of these:
+- `codex-ui`
+- `codex-ui-bin`
+- `opencode-matrix.tmTheme`
 
-- macOS
-  - Apple Silicon/arm64: `codex-aarch64-apple-darwin.tar.gz`
-  - x86_64 (older Mac hardware): `codex-x86_64-apple-darwin.tar.gz`
-- Linux
-  - x86_64: `codex-x86_64-unknown-linux-musl.tar.gz`
-  - arm64: `codex-aarch64-unknown-linux-musl.tar.gz`
+把：
 
-Each archive contains a single entry with the platform baked into the name (e.g., `codex-x86_64-unknown-linux-musl`), so you likely want to rename it to `codex` after extracting it.
+- `codex-ui`
+- `codex-ui-bin`
 
-</details>
+放进你的 `PATH` 目录，把：
 
-### Using Codex with your ChatGPT plan
+- `opencode-matrix.tmTheme`
 
-Run `codex` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use Codex as part of your Plus, Pro, Team, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+放到 `~/.codex/themes/` 即可。
 
-You can also use Codex with an API key, but this requires [additional setup](https://developers.openai.com/codex/auth#sign-in-with-an-api-key).
+## 工作方式
 
-## Docs
+`codex-ui` 是一个很薄的包装命令。它会：
 
-- [**Codex Documentation**](https://developers.openai.com/codex)
-- [**Contributing**](./docs/contributing.md)
-- [**Installing & building**](./docs/install.md)
-- [**Open source fund**](./docs/open-source-fund.md)
+- 调起同目录下的 `codex-ui-bin`
+- 自动附带 `-c 'tui.theme="opencode-matrix"'`
 
-This repository is licensed under the [Apache-2.0 License](LICENSE).
+所以你不需要手动改 `~/.codex/config.toml` 才能用这套主题。
+
+你现有的：
+
+- `~/.codex/auth.json`
+- `~/.codex/config.toml`
+- `~/.codex/sessions`
+
+都会继续复用。
+
+## 平台支持
+
+当前 Release workflow 默认构建这些目标：
+
+- `aarch64-apple-darwin`
+- `x86_64-apple-darwin`
+- `x86_64-unknown-linux-musl`
+
+如果后续需要，可以再补：
+
+- `aarch64-unknown-linux-musl`
+
+## 本地构建
+
+```sh
+git clone https://github.com/orime/codex-ui.git
+cd codex-ui
+cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
+```
+
+构建完成后可以执行：
+
+```sh
+./scripts/package-codex-ui-release.sh aarch64-apple-darwin dist
+```
+
+它会把二进制重新封装成 Release 产物格式。
+
+## 发布流程
+
+1. 从上游 `openai/codex` 同步最新代码
+2. 合入本仓库的 UI 改动
+3. 打 tag，例如 `v0.114.0-ui.1`
+4. 推送 tag
+5. GitHub Actions 自动构建并发布对应平台的 Release 资产
+
+Release 资产命名为：
+
+- `codex-ui-aarch64-apple-darwin.tar.gz`
+- `codex-ui-x86_64-apple-darwin.tar.gz`
+- `codex-ui-x86_64-unknown-linux-musl.tar.gz`
+
+## 维护建议
+
+- 保持 `codex-ui` 作为独立命令，不要覆盖系统里的 `codex`
+- 尽量把改动限制在 `codex-rs/tui` 和主题资产
+- 版本号跟随上游，例如 `v0.114.0-ui.1`
+
+## 许可与归属
+
+本仓库基于 OpenAI 开源的 Codex 仓库修改而来，遵循 Apache-2.0。
+
+- 上游项目：[openai/codex](https://github.com/openai/codex)
+- 本仓库保留原始 `LICENSE` 与 `NOTICE`
+

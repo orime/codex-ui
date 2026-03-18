@@ -6,6 +6,9 @@ use std::sync::Arc;
 
 use crate::diff_render::display_path_for;
 use crate::key_hint;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_error_style;
+use crate::style::opencode_secondary_style;
 use crate::text_formatting::truncate_text;
 use crate::tui::FrameRequester;
 use crate::tui::Tui;
@@ -29,6 +32,7 @@ use crossterm::event::KeyEventKind;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
+use ratatui::style::Styled;
 use ratatui::style::Stylize as _;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -885,11 +889,14 @@ fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
 
         // Header
         let header_line: Line = vec![
-            state.action.title().bold().cyan(),
+            state
+                .action
+                .title()
+                .set_style(opencode_secondary_style().bold()),
             "  ".into(),
             "Sort:".dim(),
             " ".into(),
-            sort_key_label(state.sort_key).magenta(),
+            sort_key_label(state.sort_key).set_style(opencode_accent_style()),
         ]
         .into();
         frame.render_widget_ref(header_line, header);
@@ -930,7 +937,7 @@ fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
 
 fn search_line(state: &PickerState) -> Line<'_> {
     if let Some(error) = state.inline_error.as_deref() {
-        return Line::from(error.red());
+        return Line::from(error.set_style(opencode_error_style()));
     }
     if state.query.is_empty() {
         return Line::from("Type to search".dim());
@@ -997,7 +1004,10 @@ fn render_list(
                 .dim(),
             )
         } else {
-            Some(Span::from(format!("{branch_label:<max_branch_width$}")).cyan())
+            Some(
+                Span::from(format!("{branch_label:<max_branch_width$}"))
+                    .set_style(opencode_secondary_style()),
+            )
         };
         let cwd_span = if !visibility.show_cwd {
             None

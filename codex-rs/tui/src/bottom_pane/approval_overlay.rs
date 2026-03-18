@@ -16,6 +16,7 @@ use crate::key_hint::KeyBinding;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_secondary_style;
 use codex_core::features::Features;
 use codex_protocol::ThreadId;
 use codex_protocol::mcp::RequestId;
@@ -37,6 +38,7 @@ use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -540,7 +542,7 @@ fn build_header(request: &ApprovalRequest) -> Box<dyn Renderable> {
             {
                 header.push(Line::from(vec![
                     "Permission rule: ".into(),
-                    rule_line.cyan(),
+                    rule_line.set_style(opencode_secondary_style()),
                 ]));
                 header.push(Line::from(""));
             }
@@ -575,7 +577,7 @@ fn build_header(request: &ApprovalRequest) -> Box<dyn Renderable> {
             if let Some(rule_line) = format_requested_permissions_rule(permissions) {
                 header.push(Line::from(vec![
                     "Permission rule: ".into(),
-                    rule_line.cyan(),
+                    rule_line.set_style(opencode_secondary_style()),
                 ]));
             }
             Box::new(Paragraph::new(header).wrap(Wrap { trim: false }))

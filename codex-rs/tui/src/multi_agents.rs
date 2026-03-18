@@ -6,6 +6,11 @@
 
 use crate::history_cell::PlainHistoryCell;
 use crate::render::line_utils::prefix_lines;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_error_style;
+use crate::style::opencode_primary_style;
+use crate::style::opencode_secondary_style;
+use crate::style::opencode_warning_style;
 use crate::text_formatting::truncate_text;
 use codex_protocol::ThreadId;
 use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
@@ -25,6 +30,7 @@ use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 #[cfg(target_os = "macos")]
 use crossterm::event::KeyModifiers;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -62,7 +68,7 @@ pub(crate) fn agent_picker_status_dot_spans(is_closed: bool) -> Vec<Span<'static
     let dot = if is_closed {
         "•".into()
     } else {
-        "•".green()
+        "•".set_style(opencode_primary_style())
     };
     vec![dot, " ".into()]
 }
@@ -398,11 +404,11 @@ fn agent_label_spans(agent: AgentLabel<'_>) -> Vec<Span<'static>> {
     let role = agent.role.map(str::trim).filter(|role| !role.is_empty());
 
     if let Some(nickname) = nickname {
-        spans.push(Span::from(nickname.to_string()).cyan().bold());
+        spans.push(Span::from(nickname.to_string()).set_style(opencode_secondary_style().bold()));
     } else if let Some(thread_id) = agent.thread_id {
-        spans.push(Span::from(thread_id.to_string()).cyan());
+        spans.push(Span::from(thread_id.to_string()).set_style(opencode_secondary_style()));
     } else {
-        spans.push(Span::from("agent").cyan());
+        spans.push(Span::from("agent").set_style(opencode_secondary_style()));
     }
 
     if let Some(role) = role {
@@ -429,7 +435,10 @@ fn spawn_request_spans(spawn_request: Option<&SpawnRequestSummary>) -> Vec<Span<
         format!("({model} {})", spawn_request.reasoning_effort)
     };
 
-    vec![Span::from(" ").dim(), Span::from(details).magenta()]
+    vec![
+        Span::from(" ").dim(),
+        Span::from(details).set_style(opencode_accent_style()),
+    ]
 }
 
 fn prompt_line(prompt: &str) -> Option<Line<'static>> {
@@ -545,11 +554,17 @@ fn status_summary_line(status: &AgentStatus) -> Line<'static> {
 #[allow(clippy::disallowed_methods)]
 fn status_summary_spans(status: &AgentStatus) -> Vec<Span<'static>> {
     match status {
-        AgentStatus::PendingInit => vec![Span::from("Pending init").cyan()],
-        AgentStatus::Running => vec![Span::from("Running").cyan().bold()],
-        AgentStatus::Interrupted => vec![Span::from("Interrupted").yellow()],
+        AgentStatus::PendingInit => {
+            vec![Span::from("Pending init").set_style(opencode_secondary_style())]
+        }
+        AgentStatus::Running => {
+            vec![Span::from("Running").set_style(opencode_secondary_style().bold())]
+        }
+        AgentStatus::Interrupted => {
+            vec![Span::from("Interrupted").set_style(opencode_warning_style())]
+        }
         AgentStatus::Completed(message) => {
-            let mut spans = vec![Span::from("Completed").green()];
+            let mut spans = vec![Span::from("Completed").set_style(opencode_primary_style())];
             if let Some(message) = message.as_ref() {
                 let message_preview = truncate_text(
                     &message.split_whitespace().collect::<Vec<_>>().join(" "),
@@ -563,7 +578,7 @@ fn status_summary_spans(status: &AgentStatus) -> Vec<Span<'static>> {
             spans
         }
         AgentStatus::Errored(error) => {
-            let mut spans = vec![Span::from("Error").red()];
+            let mut spans = vec![Span::from("Error").set_style(opencode_error_style())];
             let error_preview = truncate_text(
                 &error.split_whitespace().collect::<Vec<_>>().join(" "),
                 COLLAB_AGENT_ERROR_PREVIEW_GRAPHEMES,
@@ -575,7 +590,7 @@ fn status_summary_spans(status: &AgentStatus) -> Vec<Span<'static>> {
             spans
         }
         AgentStatus::Shutdown => vec![Span::from("Shutdown")],
-        AgentStatus::NotFound => vec![Span::from("Not found").red()],
+        AgentStatus::NotFound => vec![Span::from("Not found").set_style(opencode_error_style())],
     }
 }
 
