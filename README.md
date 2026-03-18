@@ -1,6 +1,6 @@
-# codex-ui
+# codex-matrix-ui
 
-`codex-ui` 是基于 [openai/codex](https://github.com/openai/codex) 的 UI 定制发行版。
+`codex-matrix-ui` 是基于 [openai/codex](https://github.com/openai/codex) 的 UI 定制发行版。
 
 目标很直接：
 
@@ -42,7 +42,7 @@
 ### 一键安装
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install-codex-ui.sh | sh
+curl -fsSL https://raw.githubusercontent.com/orime/codex-matrix-ui/main/scripts/install-codex-matrix-ui.sh | sh
 ```
 
 默认会做这些事：
@@ -109,8 +109,8 @@ codex-ui
 ## 本地构建
 
 ```sh
-git clone https://github.com/orime/codex-ui.git
-cd codex-ui
+git clone https://github.com/orime/codex-matrix-ui.git
+cd codex-matrix-ui
 cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
 ```
 
@@ -132,9 +132,9 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
 
 Release 资产命名为：
 
-- `codex-ui-aarch64-apple-darwin.tar.gz`
-- `codex-ui-x86_64-apple-darwin.tar.gz`
-- `codex-ui-x86_64-unknown-linux-musl.tar.gz`
+- `codex-matrix-ui-aarch64-apple-darwin.tar.gz`
+- `codex-matrix-ui-x86_64-apple-darwin.tar.gz`
+- `codex-matrix-ui-x86_64-unknown-linux-musl.tar.gz`
 
 ## 维护建议
 
@@ -148,4 +148,3 @@ Release 资产命名为：
 
 - 上游项目：[openai/codex](https://github.com/openai/codex)
 - 本仓库保留原始 `LICENSE` 与 `NOTICE`
-

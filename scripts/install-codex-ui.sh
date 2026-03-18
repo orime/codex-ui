@@ -4,7 +4,7 @@ set -eu
 
 VERSION="${1:-latest}"
 REPO_OWNER="${CODEX_UI_REPO_OWNER:-orime}"
-REPO_NAME="${CODEX_UI_REPO_NAME:-codex-ui}"
+REPO_NAME="${CODEX_UI_REPO_NAME:-codex-matrix-ui}"
 INSTALL_DIR="${CODEX_UI_INSTALL_DIR:-$HOME/.local/bin}"
 THEMES_DIR="${CODEX_UI_THEMES_DIR:-$HOME/.codex/themes}"
 path_action="already"
@@ -194,7 +194,7 @@ step "$install_mode codex-ui"
 step "Detected platform: $platform_label"
 
 resolved_version="$(resolve_version)"
-asset="codex-ui-$target.tar.gz"
+asset="codex-matrix-ui-$target.tar.gz"
 download_url="$(release_url_for_asset "$asset" "$resolved_version")"
 
 step "Resolved version: $resolved_version"
@@ -242,4 +242,3 @@ esac
 
 printf 'codex-ui %s installed successfully.\n' "$resolved_version"
 printf 'This installation does not overwrite your existing codex command.\n'
-

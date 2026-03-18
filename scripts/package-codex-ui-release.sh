@@ -12,8 +12,8 @@ OUTPUT_DIR="$2"
 REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 BINARY_PATH="${CODEX_UI_BINARY_PATH:-$REPO_ROOT/codex-rs/target/$TARGET/release/codex}"
 STAGE_DIR="$OUTPUT_DIR/stage-$TARGET"
-ARCHIVE_PATH="$OUTPUT_DIR/codex-ui-$TARGET.tar.gz"
-CHECKSUM_PATH="$OUTPUT_DIR/codex-ui-$TARGET.sha256"
+ARCHIVE_PATH="$OUTPUT_DIR/codex-matrix-ui-$TARGET.tar.gz"
+CHECKSUM_PATH="$OUTPUT_DIR/codex-matrix-ui-$TARGET.sha256"
 
 if [ ! -x "$BINARY_PATH" ]; then
   echo "Built codex binary not found: $BINARY_PATH" >&2

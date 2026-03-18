@@ -1,4 +1,4 @@
-name: codex-ui-release
+name: codex-matrix-ui-release
 
 on:
   push:
@@ -54,10 +54,10 @@ jobs:
       - name: Upload packaged asset
         uses: actions/upload-artifact@v4
         with:
-          name: codex-ui-${{ matrix.target }}
+          name: codex-matrix-ui-${{ matrix.target }}
           path: |
-            dist/codex-ui-${{ matrix.target }}.tar.gz
-            dist/codex-ui-${{ matrix.target }}.sha256
+            dist/codex-matrix-ui-${{ matrix.target }}.tar.gz
+            dist/codex-matrix-ui-${{ matrix.target }}.sha256
 
   release:
     name: Publish Release
