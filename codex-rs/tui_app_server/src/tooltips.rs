@@ -196,6 +196,9 @@ pub(crate) mod announcement {
         let mut latest_match = None;
         let today = Utc::now().date_naive();
         for raw in announcements {
+            if should_ignore_dev_build_announcement(&raw) {
+                continue;
+            }
             let Some(tip) = AnnouncementTip::from_raw(raw) else {
                 continue;
             };
@@ -207,6 +210,12 @@ pub(crate) mod announcement {
             }
         }
         latest_match
+    }
+
+    fn should_ignore_dev_build_announcement(raw: &AnnouncementTipRaw) -> bool {
+        CODEX_CLI_VERSION == "0.0.0"
+            && raw.content.trim() == "This is a test announcement"
+            && raw.version_regex.as_deref() == Some("^0\\.0\\.0$")
     }
 
     impl AnnouncementTip {
@@ -405,6 +414,24 @@ content = "This is a test announcement"
 
         assert_eq!(
             Some("This is a test announcement".to_string()),
+            parse_announcement_tip_toml(toml)
+        );
+    }
+
+    #[test]
+    fn development_builds_ignore_only_test_announcements() {
+        let toml = r#"
+[[announcements]]
+content = "This is a test announcement"
+version_regex = "^0\\.0\\.0$"
+
+[[announcements]]
+content = "Normal announcement"
+target_app = "cli"
+        "#;
+
+        assert_eq!(
+            Some("Normal announcement".to_string()),
             parse_announcement_tip_toml(toml)
         );
     }
