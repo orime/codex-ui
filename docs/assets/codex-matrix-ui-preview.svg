@@ -1,0 +1,60 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="900" fill="#0A0E0A"/>
+  <rect x="70" y="70" width="1260" height="760" rx="18" fill="#0D120D" stroke="#1E2A1B" stroke-width="2"/>
+  <rect x="70" y="70" width="1260" height="54" rx="18" fill="#111811"/>
+  <circle cx="108" cy="97" r="8" fill="#FF6B6B"/>
+  <circle cx="136" cy="97" r="8" fill="#FFD166"/>
+  <circle cx="164" cy="97" r="8" fill="#32D583"/>
+  <text x="202" y="103" fill="#8CA391" font-family="Menlo, Monaco, monospace" font-size="22">codex-ui  ·  opencode-matrix theme</text>
+
+  <text x="120" y="175" fill="#00EFFF" font-family="Menlo, Monaco, monospace" font-size="34" font-weight="700">## Matrix Preview</text>
+  <text x="120" y="220" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">This is normal text with</text>
+  <text x="520" y="220" fill="#E6FF57" font-family="Menlo, Monaco, monospace" font-size="24" font-weight="700">bold</text>
+  <text x="595" y="220" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">,</text>
+  <text x="615" y="220" fill="#FFA83D" font-family="Menlo, Monaco, monospace" font-size="24" font-style="italic">italic</text>
+  <text x="705" y="220" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">and</text>
+  <rect x="785" y="194" width="168" height="34" rx="6" fill="#141C12"/>
+  <text x="804" y="218" fill="#E6FF57" font-family="Menlo, Monaco, monospace" font-size="22">inline_code()</text>
+
+  <text x="120" y="280" fill="#00EFFF" font-family="Menlo, Monaco, monospace" font-size="28" font-weight="700">### Tasks</text>
+  <text x="140" y="325" fill="#30B3FF" font-family="Menlo, Monaco, monospace" font-size="24">-</text>
+  <text x="175" y="325" fill="#E6FF57" font-family="Menlo, Monaco, monospace" font-size="24">[x]</text>
+  <text x="240" y="325" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Read requirements</text>
+  <text x="140" y="365" fill="#30B3FF" font-family="Menlo, Monaco, monospace" font-size="24">-</text>
+  <text x="175" y="365" fill="#E6FF57" font-family="Menlo, Monaco, monospace" font-size="24">[x]</text>
+  <text x="240" y="365" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Analyze code</text>
+  <text x="140" y="405" fill="#30B3FF" font-family="Menlo, Monaco, monospace" font-size="24">-</text>
+  <text x="175" y="405" fill="#E6FF57" font-family="Menlo, Monaco, monospace" font-size="24">[ ]</text>
+  <text x="240" y="405" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Ship release</text>
+
+  <text x="120" y="470" fill="#00EFFF" font-family="Menlo, Monaco, monospace" font-size="28" font-weight="700">### Table</text>
+  <rect x="120" y="500" width="920" height="170" rx="10" fill="#0B100B" stroke="#8CA391" stroke-width="2"/>
+  <line x1="120" y1="550" x2="1040" y2="550" stroke="#8CA391" stroke-width="2"/>
+  <line x1="360" y1="500" x2="360" y2="670" stroke="#8CA391" stroke-width="2"/>
+  <line x1="620" y1="500" x2="620" y2="670" stroke="#8CA391" stroke-width="2"/>
+  <line x1="120" y1="605" x2="1040" y2="605" stroke="#1E2A1B" stroke-width="2"/>
+  <text x="145" y="535" fill="#00EFFF" font-family="Menlo, Monaco, monospace" font-size="24" font-weight="700">Name</text>
+  <text x="390" y="535" fill="#00EFFF" font-family="Menlo, Monaco, monospace" font-size="24" font-weight="700">Type</text>
+  <text x="650" y="535" fill="#00EFFF" font-family="Menlo, Monaco, monospace" font-size="24" font-weight="700">Description</text>
+  <text x="145" y="588" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Rust</text>
+  <text x="390" y="588" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Language</text>
+  <text x="650" y="588" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">System programming</text>
+  <text x="145" y="645" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Go</text>
+  <text x="390" y="645" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Language</text>
+  <text x="650" y="645" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Concurrency and tooling</text>
+
+  <text x="1100" y="230" fill="#C770FF" font-family="Menlo, Monaco, monospace" font-size="26" font-weight="700">## Notes</text>
+  <text x="1100" y="275" fill="#8CA391" font-family="Menlo, Monaco, monospace" font-size="22">&gt; quote blocks stay muted</text>
+  <text x="1100" y="315" fill="#30B3FF" font-family="Menlo, Monaco, monospace" font-size="22">- lists stay structured</text>
+  <text x="1100" y="355" fill="#24F6D9" font-family="Menlo, Monaco, monospace" font-size="22">1. numbered items stand out</text>
+  <text x="1100" y="430" fill="#C770FF" font-family="Menlo, Monaco, monospace" font-size="22">---</text>
+  <rect x="1090" y="470" width="190" height="130" rx="12" fill="#101710" stroke="#1E2A1B" stroke-width="2"/>
+  <text x="1120" y="515" fill="#30B3FF" font-family="Menlo, Monaco, monospace" font-size="22">function fib(n) {</text>
+  <text x="1145" y="550" fill="#E6FF57" font-family="Menlo, Monaco, monospace" font-size="22">const</text>
+  <text x="1210" y="550" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="22">res = [0, 1]</text>
+  <text x="1120" y="585" fill="#24F6D9" font-family="Menlo, Monaco, monospace" font-size="22">}</text>
+
+  <text x="120" y="760" fill="#24F6D9" font-family="Menlo, Monaco, monospace" font-size="24">▣</text>
+  <text x="165" y="760" fill="#62FF94" font-family="Menlo, Monaco, monospace" font-size="24">Sisyphus (Ultraworker)</text>
+  <text x="475" y="760" fill="#8CA391" font-family="Menlo, Monaco, monospace" font-size="24">• gpt-5.4 • 16.0s</text>
+</svg>
