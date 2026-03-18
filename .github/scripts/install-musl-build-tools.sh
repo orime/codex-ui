@@ -231,8 +231,26 @@ if [[ -n "${sysroot}" && "${sysroot}" != "/" ]]; then
   echo "${boring_sysroot_var}=${sysroot}" >> "$GITHUB_ENV"
 fi
 
-cflags="-pthread -idirafter /usr/include"
-cxxflags="-pthread -idirafter /usr/include"
+cflags="-pthread"
+cxxflags="-pthread"
+
+linux_uapi_include_dirs=("/usr/include")
+case "${TARGET}" in
+  x86_64-unknown-linux-musl)
+    linux_uapi_include_dirs+=("/usr/include/x86_64-linux-gnu")
+    ;;
+  aarch64-unknown-linux-musl)
+    linux_uapi_include_dirs+=("/usr/include/aarch64-linux-gnu")
+    ;;
+esac
+
+for include_dir in "${linux_uapi_include_dirs[@]}"; do
+  if [[ -d "${include_dir}" ]]; then
+    cflags="${cflags} -idirafter ${include_dir}"
+    cxxflags="${cxxflags} -idirafter ${include_dir}"
+  fi
+done
+
 if [[ "${TARGET}" == "aarch64-unknown-linux-musl" ]]; then
   # BoringSSL enables -Wframe-larger-than=25344 under clang and treats warnings as errors.
   cflags="${cflags} -Wno-error=frame-larger-than"
@@ -241,6 +259,12 @@ fi
 
 echo "CFLAGS=${cflags}" >> "$GITHUB_ENV"
 echo "CXXFLAGS=${cxxflags}" >> "$GITHUB_ENV"
+cflags_var="CFLAGS_${TARGET}"
+cflags_var="${cflags_var//-/_}"
+echo "${cflags_var}=${cflags}" >> "$GITHUB_ENV"
+cxxflags_var="CXXFLAGS_${TARGET}"
+cxxflags_var="${cxxflags_var//-/_}"
+echo "${cxxflags_var}=${cxxflags}" >> "$GITHUB_ENV"
 echo "CC=${cc}" >> "$GITHUB_ENV"
 echo "TARGET_CC=${cc}" >> "$GITHUB_ENV"
 target_cc_var="CC_${TARGET}"
