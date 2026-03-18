@@ -44,6 +44,7 @@ fn try_build_vendored_bwrap() -> Result<(), String> {
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|err| err.to_string())?);
     let out_dir = PathBuf::from(env::var("OUT_DIR").map_err(|err| err.to_string())?);
+    let target = env::var("TARGET").unwrap_or_default();
     let src_dir = resolve_bwrap_source_dir(&manifest_dir)?;
     let libcap = pkg_config::Config::new()
         .probe("libcap")
@@ -74,10 +75,32 @@ fn try_build_vendored_bwrap() -> Result<(), String> {
         // while still allowing libcap headers from the host toolchain.
         build.flag(format!("-idirafter{}", include_path.display()));
     }
+    for include_path in linux_uapi_include_dirs(&target) {
+        build.flag(format!("-idirafter{}", include_path.display()));
+    }
 
     build.compile("build_time_bwrap");
     println!("cargo:rustc-cfg=vendored_bwrap_available");
     Ok(())
+}
+
+fn linux_uapi_include_dirs(target: &str) -> Vec<PathBuf> {
+    let mut include_dirs = vec![PathBuf::from("/usr/include")];
+
+    let multiarch = match target {
+        "x86_64-unknown-linux-musl" => Some("x86_64-linux-gnu"),
+        "aarch64-unknown-linux-musl" => Some("aarch64-linux-gnu"),
+        _ => None,
+    };
+
+    if let Some(multiarch) = multiarch {
+        include_dirs.push(PathBuf::from(format!("/usr/include/{multiarch}")));
+    }
+
+    include_dirs
+        .into_iter()
+        .filter(|path| path.is_dir())
+        .collect()
 }
 
 /// Resolve the bubblewrap source directory used for build-time compilation.
