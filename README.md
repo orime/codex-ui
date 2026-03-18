@@ -32,7 +32,7 @@
 
 下面这张图是当前仓库使用的 `matrix` 风格预览图：
 
-![codex-ui preview](./docs/assets/codex-matrix-ui-preview.svg)
+![codex-ui preview](./docs/assets/preview.jpg)
 
 这套 UI 重点强化的是：
 

@@ -30,7 +30,7 @@ Current upstream base:
 
 ## Preview
 
-![codex-ui preview](./docs/assets/codex-matrix-ui-preview.svg)
+![codex-ui preview](./docs/assets/preview.jpg)
 
 This theme focuses on:
 
