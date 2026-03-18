@@ -17,7 +17,7 @@ if [[ -n "${APT_INSTALL_ARGS:-}" ]]; then
 fi
 
 sudo apt-get update "${apt_update_args[@]}"
-sudo apt-get install -y "${apt_install_args[@]}" ca-certificates curl musl-tools pkg-config libcap-dev g++ clang libc++-dev libc++abi-dev lld xz-utils
+sudo apt-get install -y "${apt_install_args[@]}" ca-certificates curl musl-tools pkg-config libcap-dev linux-libc-dev g++ clang libc++-dev libc++abi-dev lld xz-utils
 
 case "${TARGET}" in
   x86_64-unknown-linux-musl)
@@ -231,8 +231,8 @@ if [[ -n "${sysroot}" && "${sysroot}" != "/" ]]; then
   echo "${boring_sysroot_var}=${sysroot}" >> "$GITHUB_ENV"
 fi
 
-cflags="-pthread"
-cxxflags="-pthread"
+cflags="-pthread -idirafter /usr/include"
+cxxflags="-pthread -idirafter /usr/include"
 if [[ "${TARGET}" == "aarch64-unknown-linux-musl" ]]; then
   # BoringSSL enables -Wframe-larger-than=25344 under clang and treats warnings as errors.
   cflags="${cflags} -Wno-error=frame-larger-than"
