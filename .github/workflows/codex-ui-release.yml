@@ -33,10 +33,11 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.93.0
           targets: ${{ matrix.target }}
 
       - name: Install Rust target
-        run: rustup target add ${{ matrix.target }}
+        run: rustup target add --toolchain 1.93.0 ${{ matrix.target }}
 
       - name: Restore cargo cache
         uses: Swatinem/rust-cache@v2
