@@ -6,20 +6,11 @@
 ![Release](https://img.shields.io/github/v/release/orime/codex-ui?display_name=tag)
 ![Workflow](https://img.shields.io/github/actions/workflow/status/orime/codex-ui/codex-ui-release.yml?label=release)
 
-`codex-ui` is a UI-focused distribution of [openai/codex](https://github.com/openai/codex). The goal is simple: keep the official `codex` behavior intact while improving terminal visuals, Markdown rendering, and the overall `matrix`-style theme.
-
-The repository is currently published at:
-
-- [orime/codex-ui](https://github.com/orime/codex-ui)
-
-The local command remains:
-
-- `codex-ui`
+A UI-focused distribution of [openai/codex](https://github.com/openai/codex). The goal is simple: keep the official behavior intact while improving terminal visuals, Markdown rendering, and the overall `matrix`-style theme.
 
 ## What It Is
 
 - Keeps the core `codex` behavior, auth flow, and usage model
-- Provides a parallel command named `codex-ui`
 - Improves TUI colors, Markdown rendering, tables, task lists, code blocks, and quote blocks
 - Ships with `opencode-matrix.tmTheme`
 - Does not overwrite an existing `codex` installation
@@ -48,11 +39,7 @@ This theme focuses on:
 curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install-codex-ui.sh | sh
 ```
 
-This installs:
-
-- `codex-ui`
-- `codex-ui-bin`
-- `opencode-matrix.tmTheme`
+This installs the executables and `opencode-matrix.tmTheme`.
 
 Then run:
 
@@ -62,7 +49,7 @@ codex-ui
 
 ## How It Works
 
-`codex-ui` is a thin wrapper that:
+The launcher is a thin wrapper that:
 
 - launches `codex-ui-bin`
 - automatically passes `-c 'tui.theme="opencode-matrix"'`

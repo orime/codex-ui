@@ -6,20 +6,11 @@
 ![Release](https://img.shields.io/github/v/release/orime/codex-ui?display_name=tag)
 ![Workflow](https://img.shields.io/github/actions/workflow/status/orime/codex-ui/codex-ui-release.yml?label=release)
 
-`codex-ui` 是基于 [openai/codex](https://github.com/openai/codex) 的 UI 定制发行版，目标是尽量保持官方 `codex` 的使用方式不变，只增强终端中的视觉层次、Markdown 渲染和 `matrix` 风格主题。
-
-当前 GitHub 仓库实际地址是：
-
-- [orime/codex-ui](https://github.com/orime/codex-ui)
-
-本地命令保持为：
-
-- `codex-ui`
+基于 [openai/codex](https://github.com/openai/codex) 的 UI 定制发行版，尽量保持官方使用方式不变，只增强终端中的视觉层次、Markdown 渲染和 `matrix` 风格主题。
 
 ## 项目定位
 
 - 保持官方 `codex` 的核心行为、认证方式和使用习惯
-- 提供一个平行命令 `codex-ui`
 - 强化 TUI 配色、Markdown 层次、表格、任务列表、代码块和引用块样式
 - 附带 `opencode-matrix.tmTheme`
 - 不覆盖用户原本安装的 `codex`
@@ -63,10 +54,7 @@
 - 命令语义
 - 工作目录、sandbox、approval 等行为
 
-一句话说就是：
-
-- `codex` 是官方原版
-- `codex-ui` 是 UI 强化版
+一句话说就是：官方 `codex` 的 UI 强化版。
 
 ## 安装
 
@@ -79,7 +67,7 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 默认会做这些事：
 
 - 下载当前平台对应的 Release 包
-- 安装 `codex-ui` 和 `codex-ui-bin` 到 `~/.local/bin`
+- 安装可执行文件到 `~/.local/bin`
 - 安装 `opencode-matrix.tmTheme` 到 `~/.codex/themes`
 - 不覆盖已有的 `codex`
 
@@ -110,7 +98,7 @@ codex-ui
 
 ## 工作方式
 
-`codex-ui` 是一个很薄的包装命令。它会：
+启动脚本是一个很薄的包装层，它会：
 
 - 调起同目录下的 `codex-ui-bin`
 - 自动附带 `-c 'tui.theme="opencode-matrix"'`
@@ -211,7 +199,7 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
 
 ## 维护建议
 
-- 保持 `codex-ui` 作为独立命令，不要覆盖系统里的 `codex`
+- 保持独立命令形态，不要覆盖系统里的 `codex`
 - 尽量把改动限制在 `codex-rs/tui` 和主题资产
 - 版本号跟随上游，例如 `v0.114.0-ui.1`
 
