@@ -159,72 +159,17 @@ pub(crate) fn render_markdown_text_with_width_and_cwd(
 
 fn normalize_pipe_table_spacing(input: &str) -> String {
     let lines: Vec<&str> = input.lines().collect();
-    let mut out: Vec<&str> = Vec::with_capacity(lines.len());
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
     let mut idx = 0usize;
-    let mut in_table = false;
 
     while idx < lines.len() {
-        if !in_table
-            && let Some(last_duplicate_idx) = find_duplicate_table_header_run_end(&lines, idx)
-        {
-            idx = last_duplicate_idx;
-        }
-
-        let line = lines[idx];
-        let trimmed = line.trim();
-
-        if !in_table {
-            if looks_like_pipe_table_row(trimmed)
-                && lines
-                    .get(idx + 1)
-                    .map(|next| normalize_pipe_table_cells(next.trim()) == normalize_pipe_table_cells(trimmed))
-                    .unwrap_or(false)
-                && lines
-                    .get(idx + 2)
-                    .map(|delimiter| looks_like_pipe_table_delimiter(delimiter.trim()))
-                    .unwrap_or(false)
-            {
-                idx += 1;
-            }
-            out.push(line);
-            if looks_like_pipe_table_row(trimmed)
-                && lines
-                    .get(idx + 1)
-                    .map(|next| looks_like_pipe_table_delimiter(next.trim()))
-                    .unwrap_or(false)
-            {
-                in_table = true;
-            }
-            idx += 1;
+        if let Some((next_idx, normalized_table)) = normalize_pipe_table_block(&lines, idx) {
+            out.extend(normalized_table);
+            idx = next_idx;
             continue;
         }
 
-        if trimmed.is_empty() {
-            let next_non_blank = lines[idx + 1..]
-                .iter()
-                .find(|candidate| !candidate.trim().is_empty())
-                .copied();
-            if next_non_blank
-                .map(|next| looks_like_pipe_table_row(next.trim()))
-                .unwrap_or(false)
-            {
-                idx += 1;
-                continue;
-            }
-            out.push(line);
-            in_table = false;
-            idx += 1;
-            continue;
-        }
-
-        if looks_like_pipe_table_row(trimmed) {
-            out.push(line);
-            idx += 1;
-            continue;
-        }
-
-        out.push(line);
-        in_table = false;
+        out.push(lines[idx].to_string());
         idx += 1;
     }
 
@@ -233,6 +178,76 @@ fn normalize_pipe_table_spacing(input: &str) -> String {
         normalized.push('\n');
     }
     normalized
+}
+
+fn normalize_pipe_table_block(lines: &[&str], start_idx: usize) -> Option<(usize, Vec<String>)> {
+    let header_line = lines.get(start_idx)?.trim();
+    if header_line.is_empty()
+        || looks_like_pipe_table_delimiter(header_line)
+        || !looks_like_pipe_table_row(header_line)
+    {
+        return None;
+    }
+
+    let header_cells = normalize_pipe_table_cells(header_line);
+    if header_cells.len() < 2 {
+        return None;
+    }
+
+    let mut cursor = start_idx + 1;
+    let mut delimiter_line: Option<&str> = None;
+
+    while cursor < lines.len() {
+        let trimmed = lines[cursor].trim();
+        if trimmed.is_empty() {
+            cursor += 1;
+            continue;
+        }
+
+        if looks_like_pipe_table_delimiter(trimmed) {
+            delimiter_line = Some(trimmed);
+            cursor += 1;
+            break;
+        }
+
+        if normalize_pipe_table_cells(trimmed) == header_cells {
+            cursor += 1;
+            continue;
+        }
+
+        return None;
+    }
+
+    let Some(delimiter_line) = delimiter_line else {
+        return None;
+    };
+
+    let mut normalized = vec![
+        canonicalize_pipe_table_row(header_line),
+        canonicalize_pipe_table_delimiter(delimiter_line),
+    ];
+
+    while cursor < lines.len() {
+        let trimmed = lines[cursor].trim();
+        if trimmed.is_empty() {
+            cursor += 1;
+            continue;
+        }
+
+        if looks_like_pipe_table_delimiter(trimmed) {
+            break;
+        }
+
+        if looks_like_pipe_table_row(trimmed) {
+            normalized.push(canonicalize_pipe_table_row(trimmed));
+            cursor += 1;
+            continue;
+        }
+
+        break;
+    }
+
+    Some((cursor, normalized))
 }
 
 fn looks_like_pipe_table_row(line: &str) -> bool {
@@ -258,6 +273,40 @@ fn normalize_pipe_table_cells(line: &str) -> Vec<String> {
         .collect()
 }
 
+fn canonicalize_pipe_table_row(line: &str) -> String {
+    let cells = split_pipe_table_cells(line).unwrap_or_default();
+    format!(
+        "| {} |",
+        cells
+            .into_iter()
+            .map(|cell| cell.trim())
+            .collect::<Vec<_>>()
+            .join(" | ")
+    )
+}
+
+fn canonicalize_pipe_table_delimiter(line: &str) -> String {
+    let cells = split_pipe_table_cells(line).unwrap_or_default();
+    let normalized = cells
+        .into_iter()
+        .map(|cell| {
+            let trimmed = cell.trim();
+            let left_aligned = trimmed.starts_with(':');
+            let right_aligned = trimmed.ends_with(':');
+            let dash_count = trimmed.chars().filter(|ch| *ch == '-').count().max(3);
+            let mut normalized = "-".repeat(dash_count);
+            if left_aligned {
+                normalized.insert(0, ':');
+            }
+            if right_aligned {
+                normalized.push(':');
+            }
+            normalized
+        })
+        .collect::<Vec<_>>();
+    format!("| {} |", normalized.join(" | "))
+}
+
 fn split_pipe_table_cells(line: &str) -> Option<Vec<&str>> {
     let trimmed = line.trim();
     if trimmed.is_empty() || !trimmed.contains('|') {
@@ -272,41 +321,6 @@ fn split_pipe_table_cells(line: &str) -> Option<Vec<&str>> {
 
     Some(cells)
 }
-
-fn find_duplicate_table_header_run_end(lines: &[&str], start_idx: usize) -> Option<usize> {
-    let header_cells = normalize_pipe_table_cells(lines.get(start_idx)?.trim());
-    if header_cells.is_empty() || looks_like_pipe_table_delimiter(lines[start_idx].trim()) {
-        return None;
-    }
-
-    let mut cursor = start_idx + 1;
-    let mut last_duplicate_idx = start_idx;
-    let mut saw_duplicate = false;
-
-    while cursor < lines.len() {
-        let trimmed = lines[cursor].trim();
-        if trimmed.is_empty() {
-            cursor += 1;
-            continue;
-        }
-
-        if looks_like_pipe_table_delimiter(trimmed) {
-            return saw_duplicate.then_some(last_duplicate_idx);
-        }
-
-        if normalize_pipe_table_cells(trimmed) == header_cells {
-            saw_duplicate = true;
-            last_duplicate_idx = cursor;
-            cursor += 1;
-            continue;
-        }
-
-        return None;
-    }
-
-    None
-}
-
 #[derive(Clone, Debug)]
 struct LinkState {
     destination: String,

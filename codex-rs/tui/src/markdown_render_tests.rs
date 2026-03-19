@@ -322,6 +322,41 @@ fn table_wraps_to_available_width() {
 }
 
 #[test]
+fn normalizes_duplicate_header_and_blank_lines_into_single_table() {
+    let md = concat!(
+        "| 功能 | 说明 | 状态 |\n",
+        "| 功能 | 说明 | 状态 |\n",
+        "| --- | --- | --- |\n",
+        "\n",
+        "| 标题 | 支持多级标题 | 已完成 |\n",
+        "\n",
+        "| 列表 | 支持有序/无序 | 已完成 |\n",
+        "\n",
+        "| 表格 | 适合结构化展示 | 已完成 |\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert_eq!(rendered.matches('┌').count(), 1, "{rendered}");
+    assert_eq!(rendered.matches('└').count(), 1, "{rendered}");
+    assert_eq!(rendered.matches("│ 功能 ").count(), 1, "{rendered}");
+    assert!(rendered.contains("标题"));
+    assert!(rendered.contains("列表"));
+    assert!(rendered.contains("表格"));
+    assert!(!rendered.contains("| 功能 | 说明 | 状态 |"));
+}
+
+#[test]
 fn headings() {
     let md = "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n";
     let text = render_markdown_text(md);
