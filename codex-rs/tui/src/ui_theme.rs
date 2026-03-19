@@ -110,6 +110,18 @@ pub(crate) struct UiPalette {
     pub markdown_horizontal_rule: Color,
     pub markdown_list_item: Color,
     pub markdown_list_enumeration: Color,
+    pub syntax_comment: Color,
+    pub syntax_keyword: Color,
+    pub syntax_string: Color,
+    pub syntax_primitive: Color,
+    pub syntax_variable: Color,
+    pub syntax_property: Color,
+    pub syntax_type: Color,
+    pub syntax_constant: Color,
+    pub syntax_operator: Color,
+    pub syntax_punctuation: Color,
+    pub syntax_object: Color,
+    pub code_block_text: Color,
     pub primary: Color,
     pub secondary: Color,
     pub accent: Color,
@@ -120,6 +132,34 @@ pub(crate) struct UiPalette {
     pub info: Color,
     pub diff_add: Color,
     pub diff_delete: Color,
+}
+
+type Rgb = (u8, u8, u8);
+
+#[derive(Clone, Copy)]
+pub(crate) struct UiSyntaxThemePalette {
+    pub background: Rgb,
+    pub background_secondary: Rgb,
+    pub background_deeper: Rgb,
+    pub text: Rgb,
+    pub text_muted: Rgb,
+    pub accent: Rgb,
+    pub success: Rgb,
+    pub error: Rgb,
+    pub diff_add: Rgb,
+    pub diff_delete: Rgb,
+    pub syntax_comment: Rgb,
+    pub syntax_keyword: Rgb,
+    pub syntax_string: Rgb,
+    pub syntax_primitive: Rgb,
+    pub syntax_variable: Rgb,
+    pub syntax_property: Rgb,
+    pub syntax_type: Rgb,
+    pub syntax_constant: Rgb,
+    pub syntax_operator: Rgb,
+    pub syntax_punctuation: Rgb,
+    pub syntax_object: Rgb,
+    pub code_block_text: Rgb,
 }
 
 pub(crate) fn set_theme_override(name: Option<String>) -> Option<String> {
@@ -197,8 +237,41 @@ pub(crate) fn active_palette() -> UiPalette {
 
 pub(crate) fn palette_for_terminal_bg(terminal_bg: Option<(u8, u8, u8)>) -> UiPalette {
     let theme_name = current_theme_name();
+    palette_for_theme_name(theme_name.as_str(), terminal_bg)
+        .unwrap_or_else(|| palette_for_theme_name(DEFAULT_UI_THEME_NAME, terminal_bg).expect("default ui theme must exist"))
+}
+
+pub(crate) fn palette_for_theme_name(
+    name: &str,
+    terminal_bg: Option<(u8, u8, u8)>,
+) -> Option<UiPalette> {
+    let theme_name = normalize_theme_name(Some(name))?;
+    Some(build_palette_for_theme_name(theme_name, terminal_bg))
+}
+
+pub(crate) fn syntax_theme_alias(name: &str) -> Option<String> {
+    normalize_theme_name(Some(name)).map(|name| format!("ui:{name}"))
+}
+
+pub(crate) fn resolve_syntax_theme_alias(name: &str) -> Option<&'static str> {
+    name.strip_prefix("ui:")
+        .and_then(|name| normalize_theme_name(Some(name)))
+}
+
+pub(crate) fn syntax_theme_palette_for_theme_name(
+    name: &str,
+    terminal_bg: Option<(u8, u8, u8)>,
+) -> Option<UiSyntaxThemePalette> {
+    let theme_name = normalize_theme_name(Some(name))?;
+    Some(build_syntax_theme_palette_for_theme_name(theme_name, terminal_bg))
+}
+
+fn build_syntax_theme_palette_for_theme_name(
+    theme_name: &str,
+    terminal_bg: Option<(u8, u8, u8)>,
+) -> UiSyntaxThemePalette {
     let spec = theme_specs()
-        .get(theme_name.as_str())
+        .get(theme_name)
         .unwrap_or_else(|| theme_specs().get(DEFAULT_UI_THEME_NAME).expect("default ui theme must exist"));
     let use_light_variant = terminal_bg.is_some_and(is_light);
     let variant = if use_light_variant {
@@ -248,6 +321,167 @@ pub(crate) fn palette_for_terminal_bg(terminal_bg: Option<(u8, u8, u8)>) -> UiPa
     let text_muted_rgb = variant
         .override_rgb("text-weak", Some(background_rgb))
         .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.48 } else { 0.56 }));
+    let syntax_comment_rgb = variant
+        .override_rgb("syntax-comment", Some(background_rgb))
+        .unwrap_or(text_muted_rgb);
+    let syntax_keyword_rgb = variant
+        .override_rgb("syntax-keyword", Some(background_rgb))
+        .unwrap_or(accent_rgb);
+    let syntax_string_rgb = variant
+        .override_rgb("syntax-string", Some(background_rgb))
+        .unwrap_or(primary_rgb);
+    let syntax_primitive_rgb = variant
+        .override_rgb("syntax-primitive", Some(background_rgb))
+        .unwrap_or(info_rgb);
+    let syntax_variable_rgb = variant
+        .override_rgb("syntax-variable", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let syntax_property_rgb = variant
+        .override_rgb("syntax-property", Some(background_rgb))
+        .unwrap_or(secondary_rgb);
+    let syntax_type_rgb = variant
+        .override_rgb("syntax-type", Some(background_rgb))
+        .unwrap_or(warning_rgb);
+    let syntax_constant_rgb = variant
+        .override_rgb("syntax-constant", Some(background_rgb))
+        .unwrap_or(warning_rgb);
+    let syntax_operator_rgb = variant
+        .override_rgb("syntax-operator", Some(background_rgb))
+        .unwrap_or(secondary_rgb);
+    let syntax_punctuation_rgb = variant
+        .override_rgb("syntax-punctuation", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let syntax_object_rgb = variant
+        .override_rgb("syntax-object", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let code_block_text_rgb = variant
+        .override_rgb("markdown-code-block", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let background_secondary_rgb = overlay(background_rgb, text_rgb, if dark { 0.08 } else { 0.05 });
+    let background_deeper_rgb = overlay(background_rgb, text_rgb, if dark { 0.14 } else { 0.09 });
+    let diff_add_rgb = variant
+        .palette
+        .diff_add_rgb(Some(background_rgb))
+        .unwrap_or(success_rgb);
+    let diff_delete_rgb = variant
+        .palette
+        .diff_delete_rgb(Some(background_rgb))
+        .unwrap_or(error_rgb);
+
+    UiSyntaxThemePalette {
+        background: background_rgb,
+        background_secondary: background_secondary_rgb,
+        background_deeper: background_deeper_rgb,
+        text: text_rgb,
+        text_muted: text_muted_rgb,
+        accent: accent_rgb,
+        success: success_rgb,
+        error: error_rgb,
+        diff_add: diff_add_rgb,
+        diff_delete: diff_delete_rgb,
+        syntax_comment: syntax_comment_rgb,
+        syntax_keyword: syntax_keyword_rgb,
+        syntax_string: syntax_string_rgb,
+        syntax_primitive: syntax_primitive_rgb,
+        syntax_variable: syntax_variable_rgb,
+        syntax_property: syntax_property_rgb,
+        syntax_type: syntax_type_rgb,
+        syntax_constant: syntax_constant_rgb,
+        syntax_operator: syntax_operator_rgb,
+        syntax_punctuation: syntax_punctuation_rgb,
+        syntax_object: syntax_object_rgb,
+        code_block_text: code_block_text_rgb,
+    }
+}
+
+fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u8)>) -> UiPalette {
+    let spec = theme_specs()
+        .get(theme_name)
+        .unwrap_or_else(|| theme_specs().get(DEFAULT_UI_THEME_NAME).expect("default ui theme must exist"));
+    let use_light_variant = terminal_bg.is_some_and(is_light);
+    let variant = if use_light_variant {
+        &spec.light
+    } else {
+        &spec.dark
+    };
+    let dark = !use_light_variant;
+
+    let background_rgb = variant
+        .override_rgb("background-base", None)
+        .unwrap_or_else(|| variant.palette.neutral_rgb(None).unwrap_or((10, 14, 10)));
+    let primary_rgb = variant
+        .palette
+        .primary_rgb(Some(background_rgb))
+        .unwrap_or((46, 255, 106));
+    let accent_rgb = variant
+        .palette
+        .accent_rgb(Some(background_rgb))
+        .unwrap_or((199, 112, 255));
+    let success_rgb = variant
+        .palette
+        .success_rgb(Some(background_rgb))
+        .unwrap_or((98, 255, 148));
+    let warning_rgb = variant
+        .palette
+        .warning_rgb(Some(background_rgb))
+        .unwrap_or((230, 255, 87));
+    let error_rgb = variant
+        .palette
+        .error_rgb(Some(background_rgb))
+        .unwrap_or((255, 75, 75));
+    let info_rgb = variant
+        .palette
+        .info_rgb(Some(background_rgb))
+        .unwrap_or((48, 179, 255));
+    let secondary_rgb = variant
+        .palette
+        .interactive_rgb(Some(background_rgb))
+        .or_else(|| variant.palette.info_rgb(Some(background_rgb)))
+        .unwrap_or(info_rgb);
+    let text_rgb = variant
+        .override_rgb("markdown-text", Some(background_rgb))
+        .or_else(|| variant.override_rgb("text-base", Some(background_rgb)))
+        .or_else(|| variant.palette.ink_rgb(Some(background_rgb)))
+        .unwrap_or(primary_rgb);
+    let text_muted_rgb = variant
+        .override_rgb("text-weak", Some(background_rgb))
+        .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.48 } else { 0.56 }));
+    let syntax_comment_rgb = variant
+        .override_rgb("syntax-comment", Some(background_rgb))
+        .unwrap_or(text_muted_rgb);
+    let syntax_keyword_rgb = variant
+        .override_rgb("syntax-keyword", Some(background_rgb))
+        .unwrap_or(accent_rgb);
+    let syntax_string_rgb = variant
+        .override_rgb("syntax-string", Some(background_rgb))
+        .unwrap_or(primary_rgb);
+    let syntax_primitive_rgb = variant
+        .override_rgb("syntax-primitive", Some(background_rgb))
+        .unwrap_or(info_rgb);
+    let syntax_variable_rgb = variant
+        .override_rgb("syntax-variable", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let syntax_property_rgb = variant
+        .override_rgb("syntax-property", Some(background_rgb))
+        .unwrap_or(secondary_rgb);
+    let syntax_type_rgb = variant
+        .override_rgb("syntax-type", Some(background_rgb))
+        .unwrap_or(warning_rgb);
+    let syntax_constant_rgb = variant
+        .override_rgb("syntax-constant", Some(background_rgb))
+        .unwrap_or(warning_rgb);
+    let syntax_operator_rgb = variant
+        .override_rgb("syntax-operator", Some(background_rgb))
+        .unwrap_or(secondary_rgb);
+    let syntax_punctuation_rgb = variant
+        .override_rgb("syntax-punctuation", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let syntax_object_rgb = variant
+        .override_rgb("syntax-object", Some(background_rgb))
+        .unwrap_or(text_rgb);
+    let code_block_text_rgb = variant
+        .override_rgb("markdown-code-block", Some(background_rgb))
+        .unwrap_or(text_rgb);
 
     let background_secondary_rgb = overlay(background_rgb, text_rgb, if dark { 0.08 } else { 0.05 });
     let background_deeper_rgb = overlay(background_rgb, text_rgb, if dark { 0.14 } else { 0.09 });
@@ -336,6 +570,18 @@ pub(crate) fn palette_for_terminal_bg(terminal_bg: Option<(u8, u8, u8)>) -> UiPa
                 .override_rgb("markdown-list-enumeration", Some(background_rgb))
                 .unwrap_or(secondary_rgb),
         ),
+        syntax_comment: ratatui_color(syntax_comment_rgb),
+        syntax_keyword: ratatui_color(syntax_keyword_rgb),
+        syntax_string: ratatui_color(syntax_string_rgb),
+        syntax_primitive: ratatui_color(syntax_primitive_rgb),
+        syntax_variable: ratatui_color(syntax_variable_rgb),
+        syntax_property: ratatui_color(syntax_property_rgb),
+        syntax_type: ratatui_color(syntax_type_rgb),
+        syntax_constant: ratatui_color(syntax_constant_rgb),
+        syntax_operator: ratatui_color(syntax_operator_rgb),
+        syntax_punctuation: ratatui_color(syntax_punctuation_rgb),
+        syntax_object: ratatui_color(syntax_object_rgb),
+        code_block_text: ratatui_color(code_block_text_rgb),
         primary: ratatui_color(primary_rgb),
         secondary: ratatui_color(secondary_rgb),
         accent: ratatui_color(accent_rgb),

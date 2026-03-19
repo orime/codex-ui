@@ -28,15 +28,20 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::OnceLock;
 use std::sync::RwLock;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::Color as SyntectColor;
 use syntect::highlighting::FontStyle;
 use syntect::highlighting::Highlighter;
+use syntect::highlighting::ScopeSelectors;
 use syntect::highlighting::Style as SyntectStyle;
+use syntect::highlighting::StyleModifier;
 use syntect::highlighting::Theme;
+use syntect::highlighting::ThemeItem;
 use syntect::highlighting::ThemeSet;
+use syntect::highlighting::ThemeSettings;
 use syntect::parsing::Scope;
 use syntect::parsing::SyntaxReference;
 use syntect::parsing::SyntaxSet;
@@ -108,7 +113,7 @@ pub(crate) fn validate_theme_name(name: Option<&str>, codex_home: Option<&Path>)
         .map(|home| custom_theme_path(name, home).display().to_string())
         .unwrap_or_else(|| format!("$CODEX_HOME/themes/{name}.tmTheme"));
     // Bundled themes always resolve.
-    if parse_theme_name(name).is_some() {
+    if parse_theme_name(name).is_some() || crate::ui_theme::resolve_syntax_theme_alias(name).is_some() {
         return None;
     }
     // Custom themes must parse successfully; an unreadable/invalid file should
@@ -176,6 +181,98 @@ fn custom_theme_path(name: &str, codex_home: &Path) -> PathBuf {
     codex_home.join("themes").join(format!("{name}.tmTheme"))
 }
 
+
+fn build_ui_syntax_theme(name: &str) -> Option<Theme> {
+    let palette = crate::ui_theme::syntax_theme_palette_for_theme_name(
+        name,
+        crate::terminal_palette::default_bg(),
+    )?;
+    let mut keyword_font_style = FontStyle::empty();
+    keyword_font_style.insert(FontStyle::BOLD);
+
+    Some(Theme {
+        name: Some(format!("ui:{name}")),
+        author: Some("codex-ui".to_string()),
+        settings: ThemeSettings {
+            foreground: Some(syntect_rgb(palette.code_block_text)),
+            background: Some(syntect_rgb(palette.background)),
+            caret: Some(syntect_rgb(palette.text)),
+            line_highlight: Some(syntect_rgb(palette.background_secondary)),
+            gutter: Some(syntect_rgb(palette.background)),
+            gutter_foreground: Some(syntect_rgb(palette.text_muted)),
+            selection: Some(syntect_rgb(palette.background_deeper)),
+            selection_foreground: Some(syntect_rgb(palette.text)),
+            accent: Some(syntect_rgb(palette.accent)),
+            ..ThemeSettings::default()
+        },
+        scopes: vec![
+            theme_item("comment, punctuation.definition.comment, string.comment", syntect_rgb(palette.syntax_comment), None, None),
+            theme_item("entity.other.attribute-name, meta.property-name, support.type.property-name.css", syntect_rgb(palette.syntax_property), None, None),
+            theme_item("constant, entity.name.constant, variable.other.constant, variable.language, string variable", syntect_rgb(palette.syntax_constant), None, None),
+            theme_item("entity.name, entity.name.type, entity.name.class, entity.name.struct, entity.name.enum, entity.name.namespace, support.class.component", syntect_rgb(palette.syntax_type), None, None),
+            theme_item("entity.name.function, entity.name.method, support.function, support.type.primitive, support.constant, meta.object.member, storage.modifier.package, storage.modifier.import, storage.type.java", syntect_rgb(palette.syntax_primitive), None, None),
+            theme_item("keyword, storage, storage.type, keyword.operator.word", syntect_rgb(palette.syntax_keyword), None, Some(keyword_font_style)),
+            theme_item("keyword.operator, storage.type.function.arrow, punctuation.separator.key-value.css, punctuation.separator.key-value.mapping.yaml", syntect_rgb(palette.syntax_operator), None, None),
+            theme_item("string, punctuation.definition.string, string.quoted, string.template, string punctuation.section.embedded source, entity.name.tag", syntect_rgb(palette.syntax_string), None, None),
+            theme_item("support.type.object.module, variable.other.object, support.module", syntect_rgb(palette.syntax_object), None, None),
+            theme_item("variable, variable.other, variable.parameter, meta.parameter", syntect_rgb(palette.syntax_variable), None, None),
+            theme_item("punctuation, variable.parameter.function", syntect_rgb(palette.syntax_punctuation), None, None),
+            theme_item("markup.inserted, diff.inserted", syntect_rgb(palette.success), Some(syntect_rgb(palette.diff_add)), None),
+            theme_item("markup.deleted, diff.deleted", syntect_rgb(palette.error), Some(syntect_rgb(palette.diff_delete)), None),
+        ],
+    })
+}
+
+fn syntect_rgb(color: (u8, u8, u8)) -> SyntectColor {
+    let (r, g, b) = color;
+    SyntectColor {
+        r,
+        g,
+        b,
+        a: OPAQUE_ALPHA,
+    }
+}
+
+fn syntect_color(color: RtColor) -> SyntectColor {
+    match color {
+        RtColor::Rgb(r, g, b) => SyntectColor { r, g, b, a: OPAQUE_ALPHA },
+        RtColor::Indexed(i) => SyntectColor { r: i, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Reset => SyntectColor { r: 0, g: 0, b: 0, a: ANSI_ALPHA_DEFAULT },
+        RtColor::Black => SyntectColor { r: 0, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Red => SyntectColor { r: 1, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Green => SyntectColor { r: 2, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Yellow => SyntectColor { r: 3, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Blue => SyntectColor { r: 4, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Magenta => SyntectColor { r: 5, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Cyan => SyntectColor { r: 6, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Gray => SyntectColor { r: 7, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::DarkGray => SyntectColor { r: 8, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::LightRed => SyntectColor { r: 9, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::LightGreen => SyntectColor { r: 10, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::LightYellow => SyntectColor { r: 11, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::LightBlue => SyntectColor { r: 12, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::LightMagenta => SyntectColor { r: 13, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::LightCyan => SyntectColor { r: 14, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::White => SyntectColor { r: 15, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+    }
+}
+
+fn theme_item(
+    scope: &str,
+    foreground: SyntectColor,
+    background: Option<SyntectColor>,
+    font_style: Option<FontStyle>,
+) -> ThemeItem {
+    ThemeItem {
+        scope: ScopeSelectors::from_str(scope).expect("valid scope selector"),
+        style: StyleModifier {
+            foreground: Some(foreground),
+            background,
+            font_style,
+        },
+    }
+}
+
 /// Try to load a custom `.tmTheme` file from `{codex_home}/themes/{name}.tmTheme`.
 fn load_custom_theme(name: &str, codex_home: &Path) -> Option<Theme> {
     ThemeSet::get_theme(custom_theme_path(name, codex_home)).ok()
@@ -211,7 +308,13 @@ fn resolve_theme_with_override(name: Option<&str>, codex_home: Option<&Path>) ->
         if let Some(theme_name) = parse_theme_name(name) {
             return ts.get(theme_name).clone();
         }
-        // 2. Try loading {CODEX_HOME}/themes/{name}.tmTheme from disk.
+        // 2. Try synthetic UI syntax theme alias.
+        if let Some(ui_name) = crate::ui_theme::resolve_syntax_theme_alias(name)
+            && let Some(theme) = build_ui_syntax_theme(ui_name)
+        {
+            return theme;
+        }
+        // 3. Try loading {CODEX_HOME}/themes/{name}.tmTheme from disk.
         if let Some(home) = codex_home
             && let Some(theme) = load_custom_theme(name, home)
         {
@@ -306,7 +409,7 @@ fn scope_background_rgb(highlighter: &Highlighter<'_>, scope_name: &str) -> Opti
 pub(crate) fn configured_theme_name() -> String {
     // Explicit user override?
     if let Some(Some(name)) = THEME_OVERRIDE.get() {
-        if parse_theme_name(name).is_some() {
+        if parse_theme_name(name).is_some() || crate::ui_theme::resolve_syntax_theme_alias(name).is_some() {
             return name.clone();
         }
         if let Some(Some(home)) = CODEX_HOME.get()
@@ -325,6 +428,10 @@ pub(crate) fn resolve_theme_by_name(name: &str, codex_home: Option<&Path>) -> Op
     // Bundled theme?
     if let Some(embedded) = parse_theme_name(name) {
         return Some(ts.get(embedded).clone());
+    }
+    // Synthetic UI theme alias?
+    if let Some(ui_name) = crate::ui_theme::resolve_syntax_theme_alias(name) {
+        return build_ui_syntax_theme(ui_name);
     }
     // Custom .tmTheme file?
     if let Some(home) = codex_home
@@ -1065,6 +1172,38 @@ mod tests {
         assert!(result.is_some());
         let spans = result.unwrap_or_default();
         assert!(!spans.is_empty());
+    }
+
+    #[test]
+    fn ui_theme_alias_resolves_with_matrix_palette() {
+        let theme = resolve_theme_by_name("ui:matrix", None)
+            .expect("expected synthetic ui theme to resolve");
+        assert_eq!(
+            theme.settings.foreground,
+            Some(SyntectColor {
+                r: 98,
+                g: 255,
+                b: 148,
+                a: 255,
+            })
+        );
+        assert!(theme.scopes.iter().any(|item| {
+            item.style.foreground
+                == Some(SyntectColor {
+                    r: 199,
+                    g: 112,
+                    b: 255,
+                    a: 255,
+                })
+        }));
+    }
+
+    #[test]
+    fn ui_theme_alias_changes_syntax_highlighting_colors() {
+        let matrix_colors = unique_foreground_colors_for_theme("ui:matrix");
+        let dracula_colors = unique_foreground_colors_for_theme("ui:dracula");
+        assert_ne!(matrix_colors, dracula_colors);
+        assert!(matrix_colors.iter().any(|color| color.contains("Rgb(199, 112, 255)")));
     }
 
     #[test]

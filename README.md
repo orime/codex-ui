@@ -106,6 +106,28 @@ codex-ui
 
 放到 `~/.codex/themes/` 即可。
 
+## 本地开发验证
+
+开发时不要把 `codex-ui` 指到某个历史复制产物，否则很容易出现“明明编译了，实际跑的还是旧版本”。
+
+推荐流程：
+
+```sh
+cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
+./scripts/link-local-codex-ui.sh
+codex-ui --no-alt-screen
+```
+
+这个脚本会把：
+
+- `~/.n/bin/codex-ui`
+
+直接链接到：
+
+- `codex-rs/target/debug/codex`
+
+这样以后每次重新编译，本地 `codex-ui` 都会天然使用最新构建。
+
 ## 工作方式
 
 启动脚本是一个很薄的包装层，它会：

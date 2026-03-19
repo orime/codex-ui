@@ -55,6 +55,28 @@ After launch:
 - `/theme-ui` switches the full UI palette
 - the default UI theme is `matrix`
 
+## Local Development Verification
+
+During local UI work, do not keep `codex-ui` pointed at an old copied binary. That is the main reason rebuilds appear to "do nothing".
+
+Recommended loop:
+
+```sh
+cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
+./scripts/link-local-codex-ui.sh
+codex-ui --no-alt-screen
+```
+
+The helper script links:
+
+- `~/.n/bin/codex-ui`
+
+directly to:
+
+- `codex-rs/target/debug/codex`
+
+So every rebuild is reflected immediately in your local `codex-ui`.
+
 ## How It Works
 
 The launcher is a thin wrapper that:

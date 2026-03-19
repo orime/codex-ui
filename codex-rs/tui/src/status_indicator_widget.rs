@@ -280,16 +280,22 @@ impl Renderable for StatusIndicatorWidget {
                 .bold(),
         ));
         if self.animations_enabled {
-            let shimmer_text: String = shimmer_spans(&self.header)
-                .into_iter()
-                .map(|span| span.content.into_owned())
-                .collect();
             spans.push(Span::styled(
-                format!(" {} ", shimmer_text),
-                ratatui::style::Style::default()
-                    .fg(opencode_background())
-                    .bg(opencode_primary())
-                    .bold(),
+                " ".to_string(),
+                ratatui::style::Style::default().bg(opencode_primary()),
+            ));
+            for shimmer_span in shimmer_spans(&self.header) {
+                spans.push(Span::styled(
+                    shimmer_span.content.into_owned(),
+                    shimmer_span
+                        .style
+                        .patch(ratatui::style::Style::default().bg(opencode_primary()))
+                        .add_modifier(ratatui::style::Modifier::BOLD),
+                ));
+            }
+            spans.push(Span::styled(
+                " ".to_string(),
+                ratatui::style::Style::default().bg(opencode_primary()),
             ));
         } else if !self.header.is_empty() {
             spans.push(Span::styled(

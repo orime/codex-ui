@@ -7,6 +7,7 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use ratatui::text::Text;
 use std::path::Path;
+use unicode_width::UnicodeWidthStr;
 
 use crate::markdown_render::COLON_LOCATION_SUFFIX_RE;
 use crate::markdown_render::HASH_LOCATION_SUFFIX_RE;
@@ -63,6 +64,7 @@ fn matrix_link_destination_style() -> Style {
         .add_modifier(Modifier::UNDERLINED)
 }
 
+
 #[test]
 fn empty() {
     assert_eq!(render_markdown_text(""), Text::default());
@@ -109,6 +111,40 @@ fn enables_tables_and_task_lists() {
 }
 
 #[test]
+fn collapses_blank_lines_inside_pipe_tables() {
+    let md = concat!(
+        "| 项目 | 内容 |
+",
+        "| --- | --- |
+",
+        "| 疾病名称 | 胰腺癌 |
+",
+        "
+",
+        "| 常见特点 | 早期常无明显症状 |
+",
+        "
+",
+        "| 备注 | 以上仅为通用医学信息 |
+",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("
+");
+
+    assert_eq!(rendered.matches('┌').count(), 1, "expected a single table start: {rendered}");
+    assert_eq!(rendered.matches('└').count(), 1, "expected a single table end: {rendered}");
+    assert!(rendered.contains("疾病名称"));
+    assert!(rendered.contains("常见特点"));
+    assert!(rendered.contains("备注"));
+}
+
+#[test]
 fn table_header_row_is_rendered() {
     let md = concat!(
         "| 维度 | Claude Code | Codex | OpenCode |\n",
@@ -129,6 +165,7 @@ fn table_header_row_is_rendered() {
     assert!(rendered.contains("OpenCode"));
     assert!(rendered.contains("主体技术路线"));
     assert_eq!(rendered.matches("│ 维度 ").count(), 1);
+    assert!(!rendered.contains("| 维度 | Claude Code | Codex | OpenCode |"));
 
     let lines = rendered.lines().collect::<Vec<_>>();
     assert!(lines.len() >= 4);
@@ -138,6 +175,93 @@ fn table_header_row_is_rendered() {
     assert!(lines[1].contains("OpenCode"));
     assert!(lines[3].contains("主体技术路线"));
 }
+
+#[test]
+fn collapses_duplicate_table_header_before_delimiter() {
+    let md = concat!(
+        "| 功能 | 说明 | 状态 |\n",
+        "| 功能 | 说明 | 状态 |\n",
+        "| --- | --- | --- |\n",
+        "| 标题 | 支持多级标题 | 已支持 |\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(!rendered.contains("| 功能 | 说明 | 状态 |"));
+    assert_eq!(rendered.matches("│ 功能 ").count(), 1, "{rendered}");
+    assert!(rendered.contains("标题"));
+    assert!(rendered.contains("已支持"));
+}
+
+#[test]
+fn collapses_duplicate_table_header_with_spacing_variation() {
+    let md = concat!(
+        "| 功能 | 说明 | 状态 |\n",
+        "|   功能   | 说明 |   状态   |\n",
+        "| --- | --- | --- |\n",
+        "| 标题 | 支持多级标题 | 已支持 |\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(!rendered.contains("| 功能 | 说明 | 状态 |"));
+    assert_eq!(rendered.matches("│ 功能 ").count(), 1, "{rendered}");
+    assert!(rendered.contains("标题"));
+}
+
+#[test]
+fn collapses_duplicate_table_header_without_outer_pipes() {
+    let md = concat!(
+        "功能 | 说明 | 状态\n",
+        "功能 | 说明 | 状态\n",
+        "--- | --- | ---\n",
+        "标题 | 支持多级标题 | 已支持\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(!rendered.contains("功能 | 说明 | 状态"));
+    assert_eq!(rendered.matches("│ 功能 ").count(), 1, "{rendered}");
+    assert!(rendered.contains("标题"));
+}
+
+#[test]
+fn collapses_duplicate_table_header_run_before_delimiter() {
+    let md = concat!(
+        "| 功能 | 说明 | 状态 |\n",
+        "| 功能 | 说明 | 状态 |\n",
+        "| 功能 | 说明 | 状态 |\n",
+        "| --- | --- | --- |\n",
+        "| 标题 | 支持多级标题 | 已支持 |\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(!rendered.contains("| 功能 | 说明 | 状态 |"));
+    assert_eq!(rendered.matches("│ 功能 ").count(), 1, "{rendered}");
+    assert!(rendered.contains("标题"));
+}
+
 #[test]
 fn table_header_row_uses_blue_header_style() {
     let md = concat!(
@@ -154,6 +278,47 @@ fn table_header_row_uses_blue_header_style() {
         .collect::<Vec<_>>();
 
     assert!(!header_spans.is_empty());
+    for span in header_spans {
+        if span.style.fg != Some(Color::Reset) {
+            assert_eq!(span.style.fg, Some(Color::Rgb(48, 179, 255)));
+        }
+        assert!(span.style.add_modifier.contains(Modifier::BOLD));
+    }
+}
+
+#[test]
+fn table_wraps_to_available_width() {
+    let md = concat!(
+        "| 项目 | 内容 |\n",
+        "| --- | --- |\n",
+        "| 疾病名称 | 胰腺癌 (Pancreatic Cancer) |\n",
+        "| 常见特点 | 早期常无明显症状，因此通常较难早期发现 |\n",
+        "| 常见症状 | 黄疸、上腹或背部疼痛、不明原因体重下降、食欲下降、乏力 |\n",
+    );
+    let text = render_markdown_text_with_width_and_cwd(md, Some(40), None);
+
+    let rendered_lines = text
+        .lines
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(rendered_lines.iter().filter(|line| line.contains('┌')).count(), 1);
+    assert_eq!(rendered_lines.iter().filter(|line| line.contains('└')).count(), 1);
+    assert!(rendered_lines.iter().any(|line| line.contains("胰腺癌")));
+    assert!(rendered_lines.iter().any(|line| line.contains("Pancreatic")));
+    assert!(rendered_lines.iter().any(|line| line.contains("常见特点")));
+    assert!(
+        rendered_lines
+            .iter()
+            .all(|line| UnicodeWidthStr::width(line.as_str()) <= 40),
+        "rendered lines exceeded width: {rendered_lines:#?}"
+    );
 }
 
 #[test]

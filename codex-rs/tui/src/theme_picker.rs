@@ -408,6 +408,7 @@ pub(crate) fn build_theme_picker_params(
 
 pub(crate) fn build_ui_theme_picker_params(terminal_width: Option<u16>) -> SelectionViewParams {
     let original_theme_name = crate::ui_theme::current_theme_name();
+    let original_syntax_theme = highlight::current_syntax_theme();
     let effective_name = crate::ui_theme::configured_theme_name();
 
     let mut initial_idx = None;
@@ -440,12 +441,18 @@ pub(crate) fn build_ui_theme_picker_params(terminal_width: Option<u16>) -> Selec
     let on_selection_changed = Some(Box::new(move |idx: usize, _tx: &_| {
         if let Some(Some(name)) = preview_theme_names.get(idx) {
             crate::ui_theme::set_runtime_theme_name(name);
+            if let Some(alias) = crate::ui_theme::syntax_theme_alias(name)
+                && let Some(theme) = highlight::resolve_theme_by_name(&alias, None)
+            {
+                highlight::set_syntax_theme(theme);
+            }
         }
     })
         as Box<dyn Fn(usize, &crate::app_event_sender::AppEventSender) + Send + Sync>);
 
     let on_cancel = Some(Box::new(move |_tx: &_| {
         crate::ui_theme::set_runtime_theme_name(&original_theme_name);
+        highlight::set_syntax_theme(original_syntax_theme.clone());
     })
         as Box<dyn Fn(&crate::app_event_sender::AppEventSender) + Send + Sync>);
 

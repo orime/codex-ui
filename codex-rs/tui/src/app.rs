@@ -3747,18 +3747,29 @@ impl App {
                 }
             }
             AppEvent::UiThemeSelected { name } => {
-                let edit = codex_core::config::edit::ui_theme_edit(&name);
+                let ui_edit = codex_core::config::edit::ui_theme_edit(&name);
+                let syntax_theme_name = crate::ui_theme::syntax_theme_alias(&name)
+                    .unwrap_or_else(|| crate::render::highlight::configured_theme_name());
+                let syntax_edit = codex_core::config::edit::syntax_theme_edit(&syntax_theme_name);
                 let apply_result = ConfigEditsBuilder::new(&self.config.codex_home)
-                    .with_edits([edit])
+                    .with_edits([ui_edit, syntax_edit])
                     .apply()
                     .await;
                 match apply_result {
                     Ok(()) => {
                         crate::ui_theme::set_configured_theme_name(Some(&name));
                         crate::ui_theme::set_runtime_theme_name(&name);
+                        if let Some(theme) = crate::render::highlight::resolve_theme_by_name(
+                            &syntax_theme_name,
+                            Some(&self.config.codex_home),
+                        ) {
+                            crate::render::highlight::set_syntax_theme(theme);
+                        }
+                        self.sync_tui_theme_selection(syntax_theme_name);
                     }
                     Err(err) => {
                         crate::ui_theme::restore_runtime_theme_from_config();
+                        self.restore_runtime_theme_from_config();
                         tracing::error!(error = %err, "failed to persist ui theme selection");
                         self.chat_widget
                             .add_error_message(format!("Failed to save UI theme: {err}"));

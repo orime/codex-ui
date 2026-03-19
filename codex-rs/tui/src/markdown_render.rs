@@ -146,14 +146,165 @@ pub(crate) fn render_markdown_text_with_width_and_cwd(
     width: Option<usize>,
     cwd: Option<&Path>,
 ) -> Text<'static> {
+    let normalized = normalize_pipe_table_spacing(input);
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_TASKLISTS);
-    let parser = Parser::new_ext(input, options);
+    let parser = Parser::new_ext(&normalized, options);
     let mut w = Writer::new(parser, width, cwd);
     w.run();
     w.text
+}
+
+fn normalize_pipe_table_spacing(input: &str) -> String {
+    let lines: Vec<&str> = input.lines().collect();
+    let mut out: Vec<&str> = Vec::with_capacity(lines.len());
+    let mut idx = 0usize;
+    let mut in_table = false;
+
+    while idx < lines.len() {
+        if !in_table
+            && let Some(last_duplicate_idx) = find_duplicate_table_header_run_end(&lines, idx)
+        {
+            idx = last_duplicate_idx;
+        }
+
+        let line = lines[idx];
+        let trimmed = line.trim();
+
+        if !in_table {
+            if looks_like_pipe_table_row(trimmed)
+                && lines
+                    .get(idx + 1)
+                    .map(|next| normalize_pipe_table_cells(next.trim()) == normalize_pipe_table_cells(trimmed))
+                    .unwrap_or(false)
+                && lines
+                    .get(idx + 2)
+                    .map(|delimiter| looks_like_pipe_table_delimiter(delimiter.trim()))
+                    .unwrap_or(false)
+            {
+                idx += 1;
+            }
+            out.push(line);
+            if looks_like_pipe_table_row(trimmed)
+                && lines
+                    .get(idx + 1)
+                    .map(|next| looks_like_pipe_table_delimiter(next.trim()))
+                    .unwrap_or(false)
+            {
+                in_table = true;
+            }
+            idx += 1;
+            continue;
+        }
+
+        if trimmed.is_empty() {
+            let next_non_blank = lines[idx + 1..]
+                .iter()
+                .find(|candidate| !candidate.trim().is_empty())
+                .copied();
+            if next_non_blank
+                .map(|next| looks_like_pipe_table_row(next.trim()))
+                .unwrap_or(false)
+            {
+                idx += 1;
+                continue;
+            }
+            out.push(line);
+            in_table = false;
+            idx += 1;
+            continue;
+        }
+
+        if looks_like_pipe_table_row(trimmed) {
+            out.push(line);
+            idx += 1;
+            continue;
+        }
+
+        out.push(line);
+        in_table = false;
+        idx += 1;
+    }
+
+    let mut normalized = out.join("\n");
+    if input.ends_with('\n') {
+        normalized.push('\n');
+    }
+    normalized
+}
+
+fn looks_like_pipe_table_row(line: &str) -> bool {
+    split_pipe_table_cells(line).is_some()
+}
+
+fn looks_like_pipe_table_delimiter(line: &str) -> bool {
+    let Some(cells) = split_pipe_table_cells(line) else {
+        return false;
+    };
+
+    cells.iter().all(|cell| {
+        let cell = cell.trim();
+        !cell.is_empty() && cell.chars().all(|ch| matches!(ch, '-' | ':' | ' '))
+    })
+}
+
+fn normalize_pipe_table_cells(line: &str) -> Vec<String> {
+    split_pipe_table_cells(line)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|cell| cell.split_whitespace().collect::<Vec<_>>().join(" "))
+        .collect()
+}
+
+fn split_pipe_table_cells(line: &str) -> Option<Vec<&str>> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || !trimmed.contains('|') {
+        return None;
+    }
+
+    let core = trimmed.trim_matches('|');
+    let cells: Vec<&str> = core.split('|').collect();
+    if cells.len() < 2 {
+        return None;
+    }
+
+    Some(cells)
+}
+
+fn find_duplicate_table_header_run_end(lines: &[&str], start_idx: usize) -> Option<usize> {
+    let header_cells = normalize_pipe_table_cells(lines.get(start_idx)?.trim());
+    if header_cells.is_empty() || looks_like_pipe_table_delimiter(lines[start_idx].trim()) {
+        return None;
+    }
+
+    let mut cursor = start_idx + 1;
+    let mut last_duplicate_idx = start_idx;
+    let mut saw_duplicate = false;
+
+    while cursor < lines.len() {
+        let trimmed = lines[cursor].trim();
+        if trimmed.is_empty() {
+            cursor += 1;
+            continue;
+        }
+
+        if looks_like_pipe_table_delimiter(trimmed) {
+            return saw_duplicate.then_some(last_duplicate_idx);
+        }
+
+        if normalize_pipe_table_cells(trimmed) == header_cells {
+            saw_duplicate = true;
+            last_duplicate_idx = cursor;
+            cursor += 1;
+            continue;
+        }
+
+        return None;
+    }
+
+    None
 }
 
 #[derive(Clone, Debug)]
@@ -639,7 +790,10 @@ where
 
     fn start_table_head(&mut self) {
         if let Some(table) = self.table_state.as_mut() {
+            table.current_row.clear();
+            table.current_cell.clear();
             table.in_header = true;
+            table.current_row_is_header = true;
         }
     }
 
@@ -647,6 +801,7 @@ where
         if let Some(table) = self.table_state.as_mut() {
             Self::finish_table_row(table);
             table.in_header = false;
+            table.current_row_is_header = false;
         }
     }
 
@@ -943,6 +1098,7 @@ where
                 widths[idx] = widths[idx].max(UnicodeWidthStr::width(cell.as_str()).max(2));
             }
         }
+        let widths = self.fit_table_widths(&widths);
 
         let border_style = Style::default().fg(opencode_text_muted());
         let header_style = Style::default()
@@ -954,16 +1110,13 @@ where
         out.push(self.render_table_border('┌', '┬', '┐', &widths, border_style));
 
         for (row_idx, (is_header, row)) in table.rows.iter().enumerate() {
-            out.push(self.render_table_row(
+            out.extend(self.render_table_row(
                 row,
                 &widths,
                 if *is_header { header_style } else { body_style },
                 border_style,
             ));
-            let next_is_header = table.rows.get(row_idx + 1).is_some_and(|(header, _)| *header);
-            if *is_header && !next_is_header {
-                out.push(self.render_table_border('├', '┼', '┤', &widths, border_style));
-            } else if row_idx + 1 < table.rows.len() {
+            if row_idx + 1 < table.rows.len() {
                 out.push(self.render_table_border('├', '┼', '┤', &widths, border_style));
             }
         }
@@ -989,24 +1142,132 @@ where
         Line::from(vec![Span::styled(text, style)])
     }
 
+    fn fit_table_widths(&self, natural_widths: &[usize]) -> Vec<usize> {
+        let Some(max_width) = self.wrap_width else {
+            return natural_widths.to_vec();
+        };
+        if natural_widths.is_empty() {
+            return Vec::new();
+        }
+
+        let border_width = natural_widths.len() * 3 + 1;
+        let content_budget = max_width.saturating_sub(border_width);
+        if content_budget == 0 {
+            return vec![1; natural_widths.len()];
+        }
+
+        let mut widths = natural_widths.to_vec();
+        let mut min_widths: Vec<usize> = natural_widths
+            .iter()
+            .map(|width| (*width).min(4).max(1))
+            .collect();
+
+        if min_widths.iter().sum::<usize>() > content_budget {
+            min_widths.fill(1);
+        }
+
+        while widths.iter().sum::<usize>() > content_budget {
+            let Some((idx, _)) = widths
+                .iter()
+                .enumerate()
+                .filter(|(idx, width)| **width > min_widths[*idx])
+                .max_by_key(|(_, width)| **width)
+            else {
+                break;
+            };
+            widths[idx] -= 1;
+        }
+
+        if widths.iter().sum::<usize>() <= content_budget {
+            return widths;
+        }
+
+        let mut widths = vec![1; natural_widths.len()];
+        let mut remaining = content_budget.saturating_sub(widths.len());
+        let mut indices: Vec<usize> = (0..natural_widths.len()).collect();
+        indices.sort_by_key(|idx| std::cmp::Reverse(natural_widths[*idx]));
+
+        while remaining > 0 {
+            let mut progressed = false;
+            for idx in &indices {
+                if widths[*idx] < natural_widths[*idx] {
+                    widths[*idx] += 1;
+                    remaining -= 1;
+                    progressed = true;
+                    if remaining == 0 {
+                        break;
+                    }
+                }
+            }
+            if !progressed {
+                break;
+            }
+        }
+
+        widths
+    }
+
+    fn wrap_table_cell(&self, cell: &str, width: usize) -> Vec<String> {
+        if cell.is_empty() {
+            return vec![String::new()];
+        }
+        let width = width.max(1);
+        let line = Line::from(cell.to_string());
+        let wrapped = adaptive_wrap_line(&line, RtOptions::new(width));
+        let mut result: Vec<String> = wrapped
+            .into_iter()
+            .map(|line| {
+                line.spans
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect::<String>()
+            })
+            .collect();
+        if result.is_empty() {
+            result.push(String::new());
+        }
+        result
+    }
+
     fn render_table_row(
         &self,
         row: &[String],
         widths: &[usize],
         cell_style: Style,
         border_style: Style,
-    ) -> Line<'static> {
-        let mut spans = Vec::with_capacity(widths.len() * 4 + 1);
-        spans.push(Span::styled("│", border_style));
-        for (idx, width) in widths.iter().enumerate() {
-            let cell = row.get(idx).cloned().unwrap_or_default();
-            let padding = width.saturating_sub(UnicodeWidthStr::width(cell.as_str()));
-            spans.push(Span::styled(" ", border_style));
-            spans.push(Span::styled(format!("{cell}{}", " ".repeat(padding)), cell_style));
-            spans.push(Span::styled(" ", border_style));
+    ) -> Vec<Line<'static>> {
+        let wrapped_cells: Vec<Vec<String>> = widths
+            .iter()
+            .enumerate()
+            .map(|(idx, width)| {
+                let cell = row.get(idx).map(String::as_str).unwrap_or_default();
+                self.wrap_table_cell(cell, *width)
+            })
+            .collect();
+        let row_height = wrapped_cells.iter().map(Vec::len).max().unwrap_or(1);
+
+        let mut lines = Vec::with_capacity(row_height);
+        for line_idx in 0..row_height {
+            let mut spans = Vec::with_capacity(widths.len() * 4 + 1);
             spans.push(Span::styled("│", border_style));
+            for (idx, width) in widths.iter().enumerate() {
+                let cell_line = wrapped_cells[idx]
+                    .get(line_idx)
+                    .map(String::as_str)
+                    .unwrap_or_default();
+                let padding = width.saturating_sub(UnicodeWidthStr::width(cell_line));
+                spans.push(Span::styled(" ", border_style));
+                spans.push(Span::styled(
+                    format!("{cell_line}{}", " ".repeat(padding)),
+                    cell_style,
+                ));
+                spans.push(Span::styled(" ", border_style));
+                spans.push(Span::styled("│", border_style));
+            }
+            lines.push(Line::from(spans));
         }
-        Line::from(spans)
+
+        lines
     }
 
     fn push_line(&mut self, line: Line<'static>) {
