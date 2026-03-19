@@ -112,7 +112,9 @@ pub(crate) struct UiPalette {
     pub markdown_list_enumeration: Color,
     pub syntax_comment: Color,
     pub syntax_keyword: Color,
+    pub syntax_function: Color,
     pub syntax_string: Color,
+    pub syntax_number: Color,
     pub syntax_primitive: Color,
     pub syntax_variable: Color,
     pub syntax_property: Color,
@@ -141,6 +143,7 @@ pub(crate) struct UiSyntaxThemePalette {
     pub background: Rgb,
     pub background_secondary: Rgb,
     pub background_deeper: Rgb,
+    pub code_block_background: Rgb,
     pub text: Rgb,
     pub text_muted: Rgb,
     pub accent: Rgb,
@@ -148,9 +151,14 @@ pub(crate) struct UiSyntaxThemePalette {
     pub error: Rgb,
     pub diff_add: Rgb,
     pub diff_delete: Rgb,
+    pub diff_context: Rgb,
+    pub diff_add_foreground: Rgb,
+    pub diff_delete_foreground: Rgb,
     pub syntax_comment: Rgb,
     pub syntax_keyword: Rgb,
+    pub syntax_function: Rgb,
     pub syntax_string: Rgb,
+    pub syntax_number: Rgb,
     pub syntax_primitive: Rgb,
     pub syntax_variable: Rgb,
     pub syntax_property: Rgb,
@@ -318,6 +326,9 @@ fn build_syntax_theme_palette_for_theme_name(
         .or_else(|| variant.override_rgb("text-base", Some(background_rgb)))
         .or_else(|| variant.palette.ink_rgb(Some(background_rgb)))
         .unwrap_or(primary_rgb);
+    let code_block_background_rgb = variant
+        .override_rgb("background-panel", Some(background_rgb))
+        .unwrap_or_else(|| overlay(background_rgb, primary_rgb, if dark { 0.06 } else { 0.035 }));
     let text_muted_rgb = variant
         .override_rgb("text-weak", Some(background_rgb))
         .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.48 } else { 0.56 }));
@@ -327,12 +338,18 @@ fn build_syntax_theme_palette_for_theme_name(
     let syntax_keyword_rgb = variant
         .override_rgb("syntax-keyword", Some(background_rgb))
         .unwrap_or(accent_rgb);
+    let syntax_function_rgb = variant
+        .override_rgb("syntax-function", Some(background_rgb))
+        .unwrap_or(warning_rgb);
     let syntax_string_rgb = variant
         .override_rgb("syntax-string", Some(background_rgb))
         .unwrap_or(primary_rgb);
+    let syntax_number_rgb = variant
+        .override_rgb("syntax-number", Some(background_rgb))
+        .unwrap_or(error_rgb);
     let syntax_primitive_rgb = variant
         .override_rgb("syntax-primitive", Some(background_rgb))
-        .unwrap_or(info_rgb);
+        .unwrap_or(syntax_function_rgb);
     let syntax_variable_rgb = variant
         .override_rgb("syntax-variable", Some(background_rgb))
         .unwrap_or(text_rgb);
@@ -357,40 +374,89 @@ fn build_syntax_theme_palette_for_theme_name(
     let code_block_text_rgb = variant
         .override_rgb("markdown-code-block", Some(background_rgb))
         .unwrap_or(text_rgb);
-    let background_secondary_rgb = overlay(background_rgb, text_rgb, if dark { 0.08 } else { 0.05 });
-    let background_deeper_rgb = overlay(background_rgb, text_rgb, if dark { 0.14 } else { 0.09 });
+    let safe_code_block_text_rgb =
+        ensure_contrast(code_block_text_rgb, code_block_background_rgb, text_rgb, 4.8);
+    let safe_text_rgb = ensure_contrast(text_rgb, code_block_background_rgb, safe_code_block_text_rgb, 4.8);
+    let background_secondary_rgb =
+        overlay(code_block_background_rgb, safe_text_rgb, if dark { 0.08 } else { 0.05 });
+    let background_deeper_rgb =
+        overlay(code_block_background_rgb, safe_text_rgb, if dark { 0.14 } else { 0.09 });
     let diff_add_rgb = variant
-        .palette
-        .diff_add_rgb(Some(background_rgb))
+        .override_rgb("diff-added-bg", Some(code_block_background_rgb))
+        .or_else(|| variant.palette.diff_add_rgb(Some(background_rgb)))
         .unwrap_or(success_rgb);
     let diff_delete_rgb = variant
-        .palette
-        .diff_delete_rgb(Some(background_rgb))
+        .override_rgb("diff-removed-bg", Some(code_block_background_rgb))
+        .or_else(|| variant.palette.diff_delete_rgb(Some(background_rgb)))
         .unwrap_or(error_rgb);
+    let diff_context_rgb = variant
+        .override_rgb("diff-context-bg", Some(code_block_background_rgb))
+        .unwrap_or(background_secondary_rgb);
+    let safe_diff_add_rgb =
+        ensure_min_surface_delta(diff_add_rgb, code_block_background_rgb, success_rgb, dark);
+    let safe_diff_delete_rgb =
+        ensure_min_surface_delta(diff_delete_rgb, code_block_background_rgb, error_rgb, dark);
+    let safe_diff_add_foreground =
+        ensure_contrast(success_rgb, safe_diff_add_rgb, safe_code_block_text_rgb, 4.0);
+    let safe_diff_delete_foreground =
+        ensure_contrast(error_rgb, safe_diff_delete_rgb, safe_code_block_text_rgb, 4.0);
+
+    let safe_syntax_comment_rgb =
+        ensure_contrast(syntax_comment_rgb, code_block_background_rgb, safe_text_rgb, 2.6);
+    let safe_syntax_keyword_rgb =
+        ensure_contrast(syntax_keyword_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_function_rgb =
+        ensure_contrast(syntax_function_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_string_rgb =
+        ensure_contrast(syntax_string_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_number_rgb =
+        ensure_contrast(syntax_number_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_primitive_rgb =
+        ensure_contrast(syntax_primitive_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_variable_rgb =
+        ensure_contrast(syntax_variable_rgb, code_block_background_rgb, safe_text_rgb, 4.5);
+    let safe_syntax_property_rgb =
+        ensure_contrast(syntax_property_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_type_rgb =
+        ensure_contrast(syntax_type_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_constant_rgb =
+        ensure_contrast(syntax_constant_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_operator_rgb =
+        ensure_contrast(syntax_operator_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
+    let safe_syntax_punctuation_rgb =
+        ensure_contrast(syntax_punctuation_rgb, code_block_background_rgb, safe_text_rgb, 3.2);
+    let safe_syntax_object_rgb =
+        ensure_contrast(syntax_object_rgb, code_block_background_rgb, safe_text_rgb, 3.2);
 
     UiSyntaxThemePalette {
-        background: background_rgb,
+        background: code_block_background_rgb,
         background_secondary: background_secondary_rgb,
         background_deeper: background_deeper_rgb,
-        text: text_rgb,
-        text_muted: text_muted_rgb,
+        code_block_background: code_block_background_rgb,
+        text: safe_text_rgb,
+        text_muted: safe_syntax_comment_rgb,
         accent: accent_rgb,
         success: success_rgb,
         error: error_rgb,
-        diff_add: diff_add_rgb,
-        diff_delete: diff_delete_rgb,
-        syntax_comment: syntax_comment_rgb,
-        syntax_keyword: syntax_keyword_rgb,
-        syntax_string: syntax_string_rgb,
-        syntax_primitive: syntax_primitive_rgb,
-        syntax_variable: syntax_variable_rgb,
-        syntax_property: syntax_property_rgb,
-        syntax_type: syntax_type_rgb,
-        syntax_constant: syntax_constant_rgb,
-        syntax_operator: syntax_operator_rgb,
-        syntax_punctuation: syntax_punctuation_rgb,
-        syntax_object: syntax_object_rgb,
-        code_block_text: code_block_text_rgb,
+        diff_add: safe_diff_add_rgb,
+        diff_delete: safe_diff_delete_rgb,
+        diff_context: diff_context_rgb,
+        diff_add_foreground: safe_diff_add_foreground,
+        diff_delete_foreground: safe_diff_delete_foreground,
+        syntax_comment: safe_syntax_comment_rgb,
+        syntax_keyword: safe_syntax_keyword_rgb,
+        syntax_function: safe_syntax_function_rgb,
+        syntax_string: safe_syntax_string_rgb,
+        syntax_number: safe_syntax_number_rgb,
+        syntax_primitive: safe_syntax_primitive_rgb,
+        syntax_variable: safe_syntax_variable_rgb,
+        syntax_property: safe_syntax_property_rgb,
+        syntax_type: safe_syntax_type_rgb,
+        syntax_constant: safe_syntax_constant_rgb,
+        syntax_operator: safe_syntax_operator_rgb,
+        syntax_punctuation: safe_syntax_punctuation_rgb,
+        syntax_object: safe_syntax_object_rgb,
+        code_block_text: safe_code_block_text_rgb,
     }
 }
 
@@ -452,12 +518,18 @@ fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u
     let syntax_keyword_rgb = variant
         .override_rgb("syntax-keyword", Some(background_rgb))
         .unwrap_or(accent_rgb);
+    let syntax_function_rgb = variant
+        .override_rgb("syntax-function", Some(background_rgb))
+        .unwrap_or(warning_rgb);
     let syntax_string_rgb = variant
         .override_rgb("syntax-string", Some(background_rgb))
         .unwrap_or(primary_rgb);
+    let syntax_number_rgb = variant
+        .override_rgb("syntax-number", Some(background_rgb))
+        .unwrap_or(error_rgb);
     let syntax_primitive_rgb = variant
         .override_rgb("syntax-primitive", Some(background_rgb))
-        .unwrap_or(info_rgb);
+        .unwrap_or(syntax_function_rgb);
     let syntax_variable_rgb = variant
         .override_rgb("syntax-variable", Some(background_rgb))
         .unwrap_or(text_rgb);
@@ -483,24 +555,30 @@ fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u
         .override_rgb("markdown-code-block", Some(background_rgb))
         .unwrap_or(text_rgb);
 
-    let background_secondary_rgb = overlay(background_rgb, text_rgb, if dark { 0.08 } else { 0.05 });
-    let background_deeper_rgb = overlay(background_rgb, text_rgb, if dark { 0.14 } else { 0.09 });
-    let code_block_background_rgb = overlay(background_rgb, primary_rgb, if dark { 0.06 } else { 0.035 });
+    let background_secondary_rgb = variant
+        .override_rgb("background-panel", Some(background_rgb))
+        .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.08 } else { 0.05 }));
+    let background_deeper_rgb = variant
+        .override_rgb("background-element", Some(background_rgb))
+        .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.14 } else { 0.09 }));
+    let code_block_background_rgb = background_secondary_rgb;
     let markdown_code_rgb = variant
         .override_rgb("markdown-code", Some(background_rgb))
         .unwrap_or(primary_rgb);
     let inline_code_background_rgb =
         overlay(background_rgb, markdown_code_rgb, if dark { 0.10 } else { 0.06 });
-    let border_rgb = overlay(background_rgb, text_rgb, if dark { 0.18 } else { 0.20 });
+    let border_rgb = variant
+        .override_rgb("border", Some(background_rgb))
+        .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.18 } else { 0.20 }));
     let user_message_bg_rgb = overlay(background_secondary_rgb, secondary_rgb, if dark { 0.10 } else { 0.05 });
     let proposed_plan_bg_rgb = overlay(background_deeper_rgb, accent_rgb, if dark { 0.10 } else { 0.06 });
     let diff_add_rgb = variant
-        .palette
-        .diff_add_rgb(Some(background_rgb))
+        .override_rgb("diff-added-bg", Some(code_block_background_rgb))
+        .or_else(|| variant.palette.diff_add_rgb(Some(background_rgb)))
         .unwrap_or(success_rgb);
     let diff_delete_rgb = variant
-        .palette
-        .diff_delete_rgb(Some(background_rgb))
+        .override_rgb("diff-removed-bg", Some(code_block_background_rgb))
+        .or_else(|| variant.palette.diff_delete_rgb(Some(background_rgb)))
         .unwrap_or(error_rgb);
 
     UiPalette {
@@ -572,7 +650,9 @@ fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u
         ),
         syntax_comment: ratatui_color(syntax_comment_rgb),
         syntax_keyword: ratatui_color(syntax_keyword_rgb),
+        syntax_function: ratatui_color(syntax_function_rgb),
         syntax_string: ratatui_color(syntax_string_rgb),
+        syntax_number: ratatui_color(syntax_number_rgb),
         syntax_primitive: ratatui_color(syntax_primitive_rgb),
         syntax_variable: ratatui_color(syntax_variable_rgb),
         syntax_property: ratatui_color(syntax_property_rgb),
@@ -773,4 +853,96 @@ fn overlay(base: (u8, u8, u8), tint: (u8, u8, u8), alpha: f32) -> (u8, u8, u8) {
 
 fn ratatui_color(rgb: (u8, u8, u8)) -> Color {
     best_color(rgb)
+}
+
+fn relative_luminance(rgb: Rgb) -> f32 {
+    fn channel(value: u8) -> f32 {
+        let value = f32::from(value) / 255.0;
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    }
+
+    0.2126 * channel(rgb.0) + 0.7152 * channel(rgb.1) + 0.0722 * channel(rgb.2)
+}
+
+fn contrast_ratio(a: Rgb, b: Rgb) -> f32 {
+    let a = relative_luminance(a);
+    let b = relative_luminance(b);
+    let (lighter, darker) = if a >= b { (a, b) } else { (b, a) };
+    (lighter + 0.05) / (darker + 0.05)
+}
+
+fn best_text_fallback(background: Rgb) -> Rgb {
+    let white = (255, 255, 255);
+    let black = (12, 16, 20);
+    if contrast_ratio(white, background) >= contrast_ratio(black, background) {
+        white
+    } else {
+        black
+    }
+}
+
+fn ensure_contrast(candidate: Rgb, background: Rgb, fallback: Rgb, min_ratio: f32) -> Rgb {
+    if contrast_ratio(candidate, background) >= min_ratio {
+        return candidate;
+    }
+    if contrast_ratio(fallback, background) >= min_ratio {
+        return fallback;
+    }
+    best_text_fallback(background)
+}
+
+fn softened_diff_background(base: Rgb, tint: Rgb, preferred_foreground: Rgb, dark: bool) -> Rgb {
+    let mut alpha = if dark { 0.18 } else { 0.12 };
+    let min_foreground_ratio = 3.8;
+    let min_surface_delta = 1.06;
+
+    loop {
+        let candidate = overlay(base, tint, alpha);
+        if contrast_ratio(preferred_foreground, candidate) >= min_foreground_ratio
+            && contrast_ratio(candidate, base) >= min_surface_delta
+        {
+            return candidate;
+        }
+        if alpha <= 0.04 {
+            return overlay(base, tint, 0.08);
+        }
+        alpha -= 0.02;
+    }
+}
+
+fn ensure_min_surface_delta(candidate: Rgb, base: Rgb, preferred_foreground: Rgb, dark: bool) -> Rgb {
+    let min_surface_delta = 1.06;
+    if contrast_ratio(candidate, base) >= min_surface_delta
+        && contrast_ratio(preferred_foreground, candidate) >= 3.8
+    {
+        return candidate;
+    }
+    softened_diff_background(base, candidate, preferred_foreground, dark)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn syntax_theme_palette_keeps_cobalt2_code_block_readable() {
+        let palette =
+            build_syntax_theme_palette_for_theme_name("cobalt2", Some((0x19, 0x35, 0x49)));
+        assert!(contrast_ratio(palette.code_block_text, palette.code_block_background) >= 4.8);
+        assert!(contrast_ratio(palette.diff_add_foreground, palette.diff_add) >= 3.8);
+        assert!(contrast_ratio(palette.diff_delete_foreground, palette.diff_delete) >= 3.8);
+    }
+
+    #[test]
+    fn syntax_theme_palette_uses_muted_diff_backgrounds() {
+        let palette = build_syntax_theme_palette_for_theme_name("matrix", None);
+        assert!(contrast_ratio(palette.diff_add, palette.code_block_background) < 1.8);
+        assert!(contrast_ratio(palette.diff_delete, palette.code_block_background) < 1.8);
+        assert!(contrast_ratio(palette.diff_add, palette.code_block_background) > 1.05);
+        assert!(contrast_ratio(palette.diff_delete, palette.code_block_background) > 1.05);
+    }
 }
