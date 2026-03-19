@@ -169,6 +169,11 @@ fn normalize_pipe_table_spacing(input: &str) -> String {
             continue;
         }
 
+        if has_duplicate_table_header_prefix(&lines, idx) {
+            idx += 1;
+            continue;
+        }
+
         out.push(lines[idx].to_string());
         idx += 1;
     }
@@ -178,6 +183,44 @@ fn normalize_pipe_table_spacing(input: &str) -> String {
         normalized.push('\n');
     }
     normalized
+}
+
+fn has_duplicate_table_header_prefix(lines: &[&str], start_idx: usize) -> bool {
+    let Some(header_line) = lines.get(start_idx).map(|line| line.trim()) else {
+        return false;
+    };
+    if header_line.is_empty()
+        || looks_like_pipe_table_delimiter(header_line)
+        || !looks_like_pipe_table_row(header_line)
+    {
+        return false;
+    }
+
+    let header_cells = normalize_pipe_table_cells(header_line);
+    if header_cells.len() < 2 {
+        return false;
+    }
+
+    let mut cursor = start_idx + 1;
+    let mut saw_duplicate_header = false;
+
+    while cursor < lines.len() {
+        let trimmed = lines[cursor].trim();
+        if trimmed.is_empty() {
+            cursor += 1;
+            continue;
+        }
+
+        if normalize_pipe_table_cells(trimmed) == header_cells {
+            saw_duplicate_header = true;
+            cursor += 1;
+            continue;
+        }
+
+        return saw_duplicate_header && looks_like_pipe_table_delimiter(trimmed);
+    }
+
+    false
 }
 
 fn normalize_pipe_table_block(lines: &[&str], start_idx: usize) -> Option<(usize, Vec<String>)> {
@@ -279,7 +322,7 @@ fn canonicalize_pipe_table_row(line: &str) -> String {
         "| {} |",
         cells
             .into_iter()
-            .map(|cell| cell.trim())
+            .map(|cell| protect_table_cell_for_parser(cell.trim()))
             .collect::<Vec<_>>()
             .join(" | ")
     )
@@ -307,19 +350,141 @@ fn canonicalize_pipe_table_delimiter(line: &str) -> String {
     format!("| {} |", normalized.join(" | "))
 }
 
-fn split_pipe_table_cells(line: &str) -> Option<Vec<&str>> {
+fn split_pipe_table_cells(line: &str) -> Option<Vec<String>> {
     let trimmed = line.trim();
     if trimmed.is_empty() || !trimmed.contains('|') {
         return None;
     }
 
-    let core = trimmed.trim_matches('|');
-    let cells: Vec<&str> = core.split('|').collect();
+    let mut core = trimmed;
+    if let Some(rest) = core.strip_prefix('|') {
+        core = rest;
+    }
+    if let Some(rest) = core.strip_suffix('|') {
+        core = rest;
+    }
+
+    let mut cells = Vec::new();
+    let mut cell_start = 0usize;
+    let mut idx = 0usize;
+    let mut code_tick_run: Option<usize> = None;
+
+    while idx < core.len() {
+        let ch = core[idx..].chars().next().unwrap();
+        let ch_len = ch.len_utf8();
+
+        if ch == '\\' {
+            idx += ch_len;
+            if idx < core.len() {
+                let escaped = core[idx..].chars().next().unwrap();
+                idx += escaped.len_utf8();
+            }
+            continue;
+        }
+
+        if ch == '`' {
+            let tick_start = idx;
+            let mut tick_count = 0usize;
+            while idx < core.len() {
+                let tick = core[idx..].chars().next().unwrap();
+                if tick != '`' {
+                    break;
+                }
+                tick_count += 1;
+                idx += tick.len_utf8();
+            }
+
+            match code_tick_run {
+                Some(open_tick_count) if open_tick_count == tick_count => code_tick_run = None,
+                None => code_tick_run = Some(tick_count),
+                _ => {}
+            }
+
+            if idx == tick_start {
+                idx += ch_len;
+            }
+            continue;
+        }
+
+        if ch == '|' && code_tick_run.is_none() {
+            cells.push(core[cell_start..idx].to_string());
+            idx += ch_len;
+            cell_start = idx;
+            continue;
+        }
+
+        idx += ch_len;
+    }
+
+    cells.push(core[cell_start..].to_string());
     if cells.len() < 2 {
         return None;
     }
 
     Some(cells)
+}
+
+const TABLE_PIPE_SENTINEL: char = '\u{E000}';
+
+fn protect_table_cell_for_parser(cell: &str) -> String {
+    if !cell.contains('|') || !cell.contains('`') {
+        return cell.to_string();
+    }
+
+    let mut out = String::with_capacity(cell.len());
+    let mut idx = 0usize;
+    let mut code_tick_run: Option<usize> = None;
+
+    while idx < cell.len() {
+        let ch = cell[idx..].chars().next().unwrap();
+        let ch_len = ch.len_utf8();
+
+        if ch == '\\' {
+            out.push(ch);
+            idx += ch_len;
+            if idx < cell.len() {
+                let escaped = cell[idx..].chars().next().unwrap();
+                out.push(escaped);
+                idx += escaped.len_utf8();
+            }
+            continue;
+        }
+
+        if ch == '`' {
+            let tick_start = idx;
+            let mut tick_count = 0usize;
+            while idx < cell.len() {
+                let tick = cell[idx..].chars().next().unwrap();
+                if tick != '`' {
+                    break;
+                }
+                out.push(tick);
+                tick_count += 1;
+                idx += tick.len_utf8();
+            }
+
+            match code_tick_run {
+                Some(open_tick_count) if open_tick_count == tick_count => code_tick_run = None,
+                None => code_tick_run = Some(tick_count),
+                _ => {}
+            }
+
+            if idx == tick_start {
+                out.push(ch);
+                idx += ch_len;
+            }
+            continue;
+        }
+
+        if ch == '|' && code_tick_run.is_some() {
+            out.push(TABLE_PIPE_SENTINEL);
+        } else {
+            out.push(ch);
+        }
+        idx += ch_len;
+    }
+
+    out
 }
 #[derive(Clone, Debug)]
 struct LinkState {
@@ -840,7 +1005,12 @@ where
 
     fn end_table_cell(&mut self) {
         if let Some(table) = self.table_state.as_mut() {
-            table.current_row.push(table.current_cell.trim().to_string());
+            table.current_row.push(
+                table
+                    .current_cell
+                    .trim()
+                    .replace(TABLE_PIPE_SENTINEL, "|"),
+            );
             table.current_cell.clear();
         }
     }
@@ -969,7 +1139,12 @@ where
 
     fn push_table_text(&mut self, text: &str) {
         if let Some(table) = self.table_state.as_mut() {
-            table.current_cell.push_str(text);
+            let sanitized = if text.contains(TABLE_PIPE_SENTINEL) {
+                text.replace(TABLE_PIPE_SENTINEL, "|")
+            } else {
+                text.to_string()
+            };
+            table.current_cell.push_str(&sanitized);
         }
     }
 

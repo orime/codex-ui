@@ -357,6 +357,31 @@ fn normalizes_duplicate_header_and_blank_lines_into_single_table() {
 }
 
 #[test]
+fn table_preserves_pipes_inside_inline_code_cells() {
+    let md = concat!(
+        "| 功能 | 示例 | 备注 |\n",
+        "| --- | --- | --- |\n",
+        "| 表格 | `a | b` | 常见支持 |\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert_eq!(rendered.matches("│ 功能 ").count(), 1, "{rendered}");
+    assert!(rendered.contains("a | b"), "{rendered}");
+    assert!(rendered.contains("常见支持"), "{rendered}");
+}
+
+#[test]
 fn headings() {
     let md = "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n";
     let text = render_markdown_text(md);
