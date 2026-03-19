@@ -1,6 +1,5 @@
-use crate::color::is_light;
-use crate::terminal_palette::best_color;
 use crate::terminal_palette::default_bg;
+use crate::ui_theme;
 use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
@@ -15,159 +14,129 @@ pub fn proposed_plan_style() -> Style {
 
 /// Returns the style for a user-authored message using the provided terminal background.
 pub fn user_message_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
-    match terminal_bg {
-        Some(bg) => Style::default().fg(opencode_text()).bg(user_message_bg(bg)),
-        None => Style::default()
-            .fg(opencode_text())
-            .bg(opencode_background_secondary()),
-    }
+    let palette = ui_theme::palette_for_terminal_bg(terminal_bg.or_else(default_bg));
+    Style::default()
+        .fg(palette.text)
+        .bg(palette.user_message_background)
 }
 
 pub fn proposed_plan_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
-    match terminal_bg {
-        Some(bg) => Style::default()
-            .fg(opencode_text())
-            .bg(proposed_plan_bg(bg)),
-        None => Style::default()
-            .fg(opencode_text())
-            .bg(opencode_background_deeper()),
-    }
-}
-
-#[allow(clippy::disallowed_methods)]
-pub fn user_message_bg(terminal_bg: (u8, u8, u8)) -> Color {
-    if is_light(terminal_bg) {
-        best_color((228, 235, 225))
-    } else {
-        best_color((14, 19, 13))
-    }
-}
-
-#[allow(clippy::disallowed_methods)]
-pub fn proposed_plan_bg(terminal_bg: (u8, u8, u8)) -> Color {
-    if is_light(terminal_bg) {
-        best_color((218, 225, 215))
-    } else {
-        best_color((20, 28, 18))
-    }
-}
-
-fn palette_color(dark: (u8, u8, u8), light: (u8, u8, u8)) -> Color {
-    let target = if default_bg().is_some_and(is_light) {
-        light
-    } else {
-        dark
-    };
-    best_color(target)
+    let palette = ui_theme::palette_for_terminal_bg(terminal_bg.or_else(default_bg));
+    Style::default()
+        .fg(palette.text)
+        .bg(palette.proposed_plan_background)
 }
 
 pub fn opencode_background() -> Color {
-    palette_color((10, 14, 10), (238, 243, 234))
+    ui_theme::active_palette().background
 }
 
 pub fn opencode_background_secondary() -> Color {
-    palette_color((14, 19, 13), (228, 235, 225))
+    ui_theme::active_palette().background_secondary
 }
 
 pub fn opencode_background_deeper() -> Color {
-    palette_color((20, 28, 18), (218, 225, 215))
+    ui_theme::active_palette().background_deeper
 }
 
 pub fn opencode_code_block_background() -> Color {
-    palette_color((14, 19, 13), (228, 235, 225))
+    ui_theme::active_palette().code_block_background
 }
 
 pub fn opencode_inline_code_background() -> Color {
-    palette_color((10, 14, 10), (238, 243, 234))
+    ui_theme::active_palette().inline_code_background
 }
 
 pub fn opencode_commentary_text() -> Color {
-    palette_color((140, 163, 145), (116, 132, 118))
+    ui_theme::active_palette().commentary_text
 }
 
 pub fn opencode_text() -> Color {
-    palette_color((98, 255, 148), (32, 48, 34))
+    ui_theme::active_palette().text
 }
 
 pub fn opencode_markdown_text() -> Color {
-    palette_color((98, 255, 148), (32, 48, 34))
+    ui_theme::active_palette().markdown_text
 }
 
 pub fn opencode_text_muted() -> Color {
-    palette_color((140, 163, 145), (116, 132, 118))
+    ui_theme::active_palette().text_muted
 }
 
 pub fn opencode_text_emphasis() -> Color {
-    palette_color((230, 255, 87), (255, 168, 61))
+    ui_theme::active_palette().text_emphasis
 }
 
 pub fn opencode_markdown_heading() -> Color {
-    palette_color((0, 239, 255), (36, 246, 217))
+    ui_theme::active_palette().markdown_heading
 }
 
 pub fn opencode_markdown_link() -> Color {
-    palette_color((48, 179, 255), (48, 179, 255))
+    ui_theme::active_palette().markdown_link
 }
 
 pub fn opencode_markdown_link_text() -> Color {
-    palette_color((36, 246, 217), (36, 246, 217))
+    ui_theme::active_palette().markdown_link_text
 }
 
 pub fn opencode_markdown_code() -> Color {
-    palette_color((28, 194, 75), (28, 194, 75))
+    ui_theme::active_palette().markdown_code
 }
 
 pub fn opencode_markdown_blockquote() -> Color {
-    palette_color((140, 163, 145), (116, 132, 118))
+    ui_theme::active_palette().markdown_blockquote
 }
 
 pub fn opencode_markdown_emphasis() -> Color {
-    palette_color((255, 168, 61), (255, 168, 61))
+    ui_theme::active_palette().markdown_emphasis
 }
 
 pub fn opencode_markdown_strong() -> Color {
-    palette_color((230, 255, 87), (230, 255, 87))
+    ui_theme::active_palette().markdown_strong
+}
+
+pub fn opencode_markdown_horizontal_rule() -> Color {
+    ui_theme::active_palette().markdown_horizontal_rule
 }
 
 pub fn opencode_markdown_list_item() -> Color {
-    palette_color((48, 179, 255), (48, 179, 255))
+    ui_theme::active_palette().markdown_list_item
 }
 
 pub fn opencode_markdown_list_enumeration() -> Color {
-    palette_color((36, 246, 217), (36, 246, 217))
+    ui_theme::active_palette().markdown_list_enumeration
 }
 
 pub fn opencode_primary() -> Color {
-    palette_color((46, 255, 106), (28, 194, 75))
+    ui_theme::active_palette().primary
 }
 
 pub fn opencode_secondary() -> Color {
-    palette_color((0, 239, 255), (36, 246, 217))
+    ui_theme::active_palette().secondary
 }
 
 pub fn opencode_accent() -> Color {
-    palette_color((199, 112, 255), (199, 112, 255))
+    ui_theme::active_palette().accent
 }
 
 pub fn opencode_border() -> Color {
-    palette_color((30, 42, 27), (116, 132, 118))
+    ui_theme::active_palette().border
 }
 
 pub fn opencode_success() -> Color {
-    palette_color((98, 255, 148), (28, 194, 75))
+    ui_theme::active_palette().success
 }
 
 pub fn opencode_warning() -> Color {
-    palette_color((230, 255, 87), (230, 255, 87))
+    ui_theme::active_palette().warning
 }
 
-#[allow(dead_code)]
 pub fn opencode_error() -> Color {
-    palette_color((255, 75, 75), (255, 75, 75))
+    ui_theme::active_palette().error
 }
 
 pub fn opencode_info() -> Color {
-    palette_color((48, 179, 255), (48, 179, 255))
+    ui_theme::active_palette().info
 }
 
 pub fn opencode_surface_style() -> Style {

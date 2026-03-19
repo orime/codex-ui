@@ -406,6 +406,71 @@ pub(crate) fn build_theme_picker_params(
     }
 }
 
+pub(crate) fn build_ui_theme_picker_params(terminal_width: Option<u16>) -> SelectionViewParams {
+    let original_theme_name = crate::ui_theme::current_theme_name();
+    let effective_name = crate::ui_theme::configured_theme_name();
+
+    let mut initial_idx = None;
+    let items: Vec<SelectionItem> = crate::ui_theme::list_available_themes()
+        .into_iter()
+        .enumerate()
+        .map(|(idx, name)| {
+            let is_current = name == effective_name;
+            if is_current {
+                initial_idx = Some(idx);
+            }
+            let name_for_action = name.clone();
+            SelectionItem {
+                name: name.clone(),
+                is_current,
+                dismiss_on_select: true,
+                search_value: Some(name),
+                actions: vec![Box::new(move |tx| {
+                    tx.send(AppEvent::UiThemeSelected {
+                        name: name_for_action.clone(),
+                    });
+                })],
+                ..Default::default()
+            }
+        })
+        .collect();
+
+    let preview_theme_names: Vec<Option<String>> =
+        items.iter().map(|item| item.search_value.clone()).collect();
+    let on_selection_changed = Some(Box::new(move |idx: usize, _tx: &_| {
+        if let Some(Some(name)) = preview_theme_names.get(idx) {
+            crate::ui_theme::set_runtime_theme_name(name);
+        }
+    })
+        as Box<dyn Fn(usize, &crate::app_event_sender::AppEventSender) + Send + Sync>);
+
+    let on_cancel = Some(Box::new(move |_tx: &_| {
+        crate::ui_theme::set_runtime_theme_name(&original_theme_name);
+    })
+        as Box<dyn Fn(&crate::app_event_sender::AppEventSender) + Send + Sync>);
+
+    SelectionViewParams {
+        title: Some("Select UI Theme".to_string()),
+        subtitle: Some(match terminal_width {
+            Some(_) => "Move up/down to live preview UI themes".to_string(),
+            None => PREVIEW_FALLBACK_SUBTITLE.to_string(),
+        }),
+        footer_hint: Some(standard_popup_hint_line()),
+        items,
+        is_searchable: true,
+        search_placeholder: Some("Type to filter UI themes...".to_string()),
+        initial_selected_idx: initial_idx,
+        side_content: Box::new(ThemePreviewWideRenderable),
+        side_content_width: SideContentWidth::Half,
+        side_content_min_width: WIDE_PREVIEW_MIN_WIDTH,
+        stacked_side_content: Some(Box::new(ThemePreviewNarrowRenderable)),
+        preserve_side_content_bg: true,
+        on_selection_changed,
+        on_cancel,
+        ..Default::default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

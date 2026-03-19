@@ -129,6 +129,7 @@ mod text_formatting;
 mod theme_picker;
 mod tooltips;
 mod tui;
+mod ui_theme;
 mod ui_consts;
 pub mod update_action;
 mod update_prompt;
@@ -352,6 +353,9 @@ pub async fn run_main(
     {
         tracing::warn!(error = %err, "failed to run personality migration");
     }
+    let _startup_ui_theme_warning = crate::ui_theme::set_theme_override(
+        config_toml.tui.as_ref().and_then(|t| t.ui_theme.clone()),
+    );
 
     let cloud_auth_manager = AuthManager::shared(
         codex_home.to_path_buf(),
@@ -954,7 +958,6 @@ async fn run_ratatui_app(
     ) {
         config.startup_warnings.push(w);
     }
-
     set_default_client_residency_requirement(config.enforce_residency.value());
     let active_profile = config.active_profile.clone();
     let should_show_trust_screen = should_show_trust_screen(&config);

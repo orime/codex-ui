@@ -3746,6 +3746,25 @@ impl App {
                     }
                 }
             }
+            AppEvent::UiThemeSelected { name } => {
+                let edit = codex_core::config::edit::ui_theme_edit(&name);
+                let apply_result = ConfigEditsBuilder::new(&self.config.codex_home)
+                    .with_edits([edit])
+                    .apply()
+                    .await;
+                match apply_result {
+                    Ok(()) => {
+                        crate::ui_theme::set_configured_theme_name(Some(&name));
+                        crate::ui_theme::set_runtime_theme_name(&name);
+                    }
+                    Err(err) => {
+                        crate::ui_theme::restore_runtime_theme_from_config();
+                        tracing::error!(error = %err, "failed to persist ui theme selection");
+                        self.chat_widget
+                            .add_error_message(format!("Failed to save UI theme: {err}"));
+                    }
+                }
+            }
         }
         Ok(AppRunControl::Continue)
     }

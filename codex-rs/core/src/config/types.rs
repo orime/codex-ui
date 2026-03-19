@@ -737,6 +737,12 @@ pub struct Tui {
     #[serde(default)]
     pub theme: Option<String>,
 
+    /// UI palette theme name (kebab-case).
+    ///
+    /// When set, overrides the default matrix UI palette used by `/theme-ui`.
+    #[serde(default)]
+    pub ui_theme: Option<String>,
+
     /// Startup tooltip availability NUX state persisted by the TUI.
     #[serde(default)]
     pub model_availability_nux: ModelAvailabilityNuxConfig,

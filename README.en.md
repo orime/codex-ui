@@ -12,6 +12,8 @@ A UI-focused distribution of [openai/codex](https://github.com/openai/codex). Th
 
 - Keeps the core `codex` behavior, auth flow, and usage model
 - Improves TUI colors, Markdown rendering, tables, task lists, code blocks, and quote blocks
+- Preserves the original `/theme` command for syntax highlighting and adds `/theme-ui` for full UI palette switching
+- Includes 37 mapped opencode-style UI themes, with `matrix` as the default UI theme
 - Ships with `opencode-matrix.tmTheme`
 - Does not overwrite an existing `codex` installation
 
@@ -47,6 +49,12 @@ Then run:
 codex-ui
 ```
 
+After launch:
+
+- `/theme` still controls syntax highlighting
+- `/theme-ui` switches the full UI palette
+- the default UI theme is `matrix`
+
 ## How It Works
 
 The launcher is a thin wrapper that:
@@ -61,6 +69,8 @@ That means your existing:
 - `~/.codex/sessions`
 
 continue to work as-is.
+
+By default, the UI palette uses the built-in `matrix` theme. Use `/theme-ui` to switch the full UI palette, and use `/theme` if you only want to change syntax highlighting.
 
 ## Release Status
 

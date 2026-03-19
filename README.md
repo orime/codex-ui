@@ -12,6 +12,8 @@
 
 - 保持官方 `codex` 的核心行为、认证方式和使用习惯
 - 强化 TUI 配色、Markdown 层次、表格、任务列表、代码块和引用块样式
+- 保留原有 `/theme` 语法高亮切换，并新增 `/theme-ui` 用于切换 UI palette
+- 内置映射 opencode 的 37 套 UI 主题，默认 UI 主题为 `matrix`
 - 附带 `opencode-matrix.tmTheme`
 - 不覆盖用户原本安装的 `codex`
 
@@ -42,6 +44,7 @@
 ## 改了什么
 
 - TUI 公共配色和 surface 风格
+- 新增 `/theme-ui`，用于切换整套 UI palette
 - Markdown 标题、粗体、斜体、链接、引用、任务列表、表格、数学片段渲染
 - 代码块和行内代码层次
 - 选择弹窗、状态条、会话区域等视觉细节
@@ -52,6 +55,7 @@
 - 模型调用方式
 - 登录和认证逻辑
 - 命令语义
+- 原有 `/theme` 语法高亮命令语义
 - 工作目录、sandbox、approval 等行为
 
 一句话说就是：官方 `codex` 的 UI 强化版。
@@ -76,6 +80,12 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 ```sh
 codex-ui
 ```
+
+运行后：
+
+- `/theme` 继续切换语法高亮主题
+- `/theme-ui` 切换整套 UI palette
+- 默认 UI 主题为 `matrix`
 
 ### 手动安装
 
@@ -103,7 +113,7 @@ codex-ui
 - 调起同目录下的 `codex-ui-bin`
 - 自动附带 `-c 'tui.theme="opencode-matrix"'`
 
-所以你不需要手动改 `~/.codex/config.toml` 才能使用这套主题。
+默认情况下，UI palette 会使用内置的 `matrix`。如果你想换整套 UI 风格，用 `/theme-ui`；如果你只想换代码高亮，用 `/theme`。
 
 你现有的：
 

@@ -163,6 +163,11 @@ pub(crate) enum AppEvent {
 
     InsertHistoryCell(Box<dyn HistoryCell>),
 
+    /// Persist the selected UI palette theme to config.
+    UiThemeSelected {
+        name: String,
+    },
+
     /// Apply rollback semantics to local transcript cells.
     ///
     /// This is emitted when rollback was not initiated by the current

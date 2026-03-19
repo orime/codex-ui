@@ -68,6 +68,14 @@ pub fn syntax_theme_edit(name: &str) -> ConfigEdit {
     }
 }
 
+/// Produces a config edit that sets `[tui] ui_theme = "<name>"`.
+pub fn ui_theme_edit(name: &str) -> ConfigEdit {
+    ConfigEdit::SetPath {
+        segments: vec!["tui".to_string(), "ui_theme".to_string()],
+        value: value(name.to_string()),
+    }
+}
+
 pub fn status_line_items_edit(items: &[String]) -> ConfigEdit {
     let mut array = toml_edit::Array::new();
     for item in items {
