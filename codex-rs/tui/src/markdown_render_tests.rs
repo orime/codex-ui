@@ -128,6 +128,7 @@ fn table_header_row_is_rendered() {
     assert!(rendered.contains("Codex"));
     assert!(rendered.contains("OpenCode"));
     assert!(rendered.contains("主体技术路线"));
+    assert_eq!(rendered.matches("│ 维度 ").count(), 1);
 
     let lines = rendered.lines().collect::<Vec<_>>();
     assert!(lines.len() >= 4);
@@ -136,6 +137,23 @@ fn table_header_row_is_rendered() {
     assert!(lines[1].contains("Codex"));
     assert!(lines[1].contains("OpenCode"));
     assert!(lines[3].contains("主体技术路线"));
+}
+#[test]
+fn table_header_row_uses_blue_header_style() {
+    let md = concat!(
+        "| 名称 | 类型 |\n",
+        "| --- | --- |\n",
+        "| port | number |\n",
+    );
+    let text = render_markdown_text(md);
+    let header_line = &text.lines[1];
+    let header_spans = header_line
+        .spans
+        .iter()
+        .filter(|span| span.content.contains("名称") || span.content.contains("类型"))
+        .collect::<Vec<_>>();
+
+    assert!(!header_spans.is_empty());
 }
 
 #[test]

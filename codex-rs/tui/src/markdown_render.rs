@@ -945,10 +945,9 @@ where
         }
 
         let border_style = Style::default().fg(opencode_text_muted());
-        let header_style = self
-            .styles
-            .h3
-            .patch(Style::default().fg(opencode_markdown_heading()));
+        let header_style = Style::default()
+            .fg(opencode_markdown_link())
+            .add_modifier(ratatui::style::Modifier::BOLD);
         let body_style = Style::default().fg(opencode_markdown_text());
 
         let mut out = Vec::new();
