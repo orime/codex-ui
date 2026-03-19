@@ -645,6 +645,7 @@ where
 
     fn end_table_head(&mut self) {
         if let Some(table) = self.table_state.as_mut() {
+            Self::finish_table_row(table);
             table.in_header = false;
         }
     }
@@ -657,11 +658,8 @@ where
     }
 
     fn end_table_row(&mut self) {
-        if let Some(table) = self.table_state.as_mut()
-            && !table.current_row.is_empty()
-        {
-            let row = std::mem::take(&mut table.current_row);
-            table.rows.push((table.current_row_is_header, row));
+        if let Some(table) = self.table_state.as_mut() {
+            Self::finish_table_row(table);
         }
     }
 
@@ -676,6 +674,15 @@ where
             table.current_row.push(table.current_cell.trim().to_string());
             table.current_cell.clear();
         }
+    }
+
+    fn finish_table_row(table: &mut TableState) {
+        if table.current_row.is_empty() {
+            return;
+        }
+
+        let row = std::mem::take(&mut table.current_row);
+        table.rows.push((table.current_row_is_header, row));
     }
 
     fn start_codeblock(&mut self, lang: Option<String>, indent: Option<Span<'static>>) {

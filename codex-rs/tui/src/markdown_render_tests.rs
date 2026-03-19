@@ -109,6 +109,36 @@ fn enables_tables_and_task_lists() {
 }
 
 #[test]
+fn table_header_row_is_rendered() {
+    let md = concat!(
+        "| 维度 | Claude Code | Codex | OpenCode |\n",
+        "| --- | --- | --- | --- |\n",
+        "| 主体技术路线 | Node/JS CLI | Rust 原生 CLI | Go 原生 CLI |\n",
+    );
+    let text = render_markdown_text(md);
+    let rendered = text
+        .lines
+        .iter()
+        .map(|line| line.spans.iter().map(|span| span.content.as_ref()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(rendered.contains("维度"));
+    assert!(rendered.contains("Claude Code"));
+    assert!(rendered.contains("Codex"));
+    assert!(rendered.contains("OpenCode"));
+    assert!(rendered.contains("主体技术路线"));
+
+    let lines = rendered.lines().collect::<Vec<_>>();
+    assert!(lines.len() >= 4);
+    assert!(lines[1].contains("维度"));
+    assert!(lines[1].contains("Claude Code"));
+    assert!(lines[1].contains("Codex"));
+    assert!(lines[1].contains("OpenCode"));
+    assert!(lines[3].contains("主体技术路线"));
+}
+
+#[test]
 fn headings() {
     let md = "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n";
     let text = render_markdown_text(md);
