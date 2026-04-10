@@ -241,4 +241,5 @@ case "$path_action" in
 esac
 
 printf 'codex-ui %s installed successfully.\n' "$resolved_version"
+printf 'Default launcher binding: built-in matrix UI + opencode-matrix syntax theme.\n'
 printf 'This installation does not overwrite your existing codex command.\n'

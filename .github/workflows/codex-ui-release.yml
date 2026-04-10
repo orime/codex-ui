@@ -57,6 +57,15 @@ jobs:
       - name: Package release asset
         run: ./scripts/package-codex-ui-release.sh ${{ matrix.target }} dist
 
+      - name: Verify packaged launcher binding
+        run: |
+          tmp_dir="$(mktemp -d)"
+          tar -xzf "dist/codex-ui-${{ matrix.target }}.tar.gz" -C "$tmp_dir"
+          test -f "$tmp_dir/codex-ui"
+          test -f "$tmp_dir/codex-ui-bin"
+          test -f "$tmp_dir/opencode-matrix.tmTheme"
+          grep -F 'tui.theme="opencode-matrix"' "$tmp_dir/codex-ui"
+
       - name: Upload packaged asset
         uses: actions/upload-artifact@v4
         with:

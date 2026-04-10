@@ -14,12 +14,12 @@ A UI-focused distribution of [openai/codex](https://github.com/openai/codex). Th
 - Improves TUI colors, Markdown rendering, tables, task lists, code blocks, and quote blocks
 - Preserves the original `/theme` command for syntax highlighting and adds `/theme-ui` for full UI palette switching
 - Includes 37 mapped opencode-style UI themes, with `matrix` as the default UI theme
-- Ships with `opencode-matrix.tmTheme`
+- Binds the `codex-ui` launcher to `opencode-matrix.tmTheme` as the default syntax-highlighting companion for the `matrix` UI
 - Does not overwrite an existing `codex` installation
 
 Current upstream base:
 
-- `a3613035f32a45146297a74e058a8c70b91c56c2`
+- `rust-v0.118.0`
 
 ## Preview
 
@@ -42,6 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 ```
 
 This installs the executables and `opencode-matrix.tmTheme`.
+The installed `codex-ui` launcher also passes `-c 'tui.theme="opencode-matrix"'` by default.
 
 Then run:
 
@@ -67,17 +68,29 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
 codex-ui --no-alt-screen
 ```
 
-The helper script links:
+The helper script writes a local `codex-ui` launcher to:
 
 - `~/.n/bin/codex-ui`
 
-directly to:
+That launcher binds:
 
 - `codex-rs/target/debug/codex`
+- `-c 'tui.theme="opencode-matrix"'`
 
-So every rebuild is reflected immediately in your local `codex-ui`.
+So every rebuild is reflected immediately in your local `codex-ui`, while keeping the same `opencode-matrix` binding used by the GitHub release assets.
+
+If you want local `codex-ui` to use the release build instead:
+
+```sh
+CODEX_UI_PROFILE=release ./scripts/link-local-codex-ui.sh
+```
 
 ## How It Works
+
+The default `codex-ui` experience intentionally binds two layers together:
+
+- the built-in `matrix` UI palette
+- the `opencode-matrix` syntax theme
 
 The launcher is a thin wrapper that:
 
@@ -91,6 +104,8 @@ That means your existing:
 - `~/.codex/sessions`
 
 continue to work as-is.
+
+This means `opencode-matrix` is not a random extra file. It is part of the default `codex-ui` visual contract on top of upstream `codex`.
 
 By default, the UI palette uses the built-in `matrix` theme. Use `/theme-ui` to switch the full UI palette, and use `/theme` if you only want to change syntax highlighting.
 

@@ -14,7 +14,7 @@
 - 强化 TUI 配色、Markdown 层次、表格、任务列表、代码块和引用块样式
 - 保留原有 `/theme` 语法高亮切换，并新增 `/theme-ui` 用于切换 UI palette
 - 内置映射 opencode 的 37 套 UI 主题，默认 UI 主题为 `matrix`
-- 附带 `opencode-matrix.tmTheme`
+- `codex-ui` 启动器默认绑定 `opencode-matrix.tmTheme`，作为 `matrix` UI 的语法高亮补充
 - 不覆盖用户原本安装的 `codex`
 
 当前已对齐到 OpenAI 官方最新正式版：
@@ -75,6 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 - 下载当前平台对应的 Release 包
 - 安装可执行文件到 `~/.local/bin`
 - 安装 `opencode-matrix.tmTheme` 到 `~/.codex/themes`
+- 安装的 `codex-ui` 启动器会默认附带 `-c 'tui.theme="opencode-matrix"'`
 - 不覆盖已有的 `codex`
 
 安装完成后直接运行：
@@ -120,22 +121,36 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
 codex-ui --no-alt-screen
 ```
 
-这个脚本会把：
+这个脚本会写入一个本地 `codex-ui` 启动器到：
 
 - `~/.n/bin/codex-ui`
 
-直接链接到：
+这个启动器默认绑定：
 
 - `codex-rs/target/debug/codex`
+- `-c 'tui.theme="opencode-matrix"'`
 
-这样以后每次重新编译，本地 `codex-ui` 都会天然使用最新构建。
+这样以后每次重新编译，本地 `codex-ui` 都会天然使用最新构建，同时和 GitHub Release 保持一致的 `opencode-matrix` 绑定语义。
+
+如果你要把本地 `codex-ui` 切到 release 构建：
+
+```sh
+CODEX_UI_PROFILE=release ./scripts/link-local-codex-ui.sh
+```
 
 ## 工作方式
+
+`codex-ui` 的默认体验是两层绑定一起工作的：
+
+- UI palette 使用内置的 `matrix`
+- 语法高亮默认绑定 `opencode-matrix`
 
 启动脚本是一个很薄的包装层，它会：
 
 - 调起同目录下的 `codex-ui-bin`
 - 自动附带 `-c 'tui.theme="opencode-matrix"'`
+
+这意味着 `opencode-matrix` 不是一个偶然附带的文件，而是 `codex-ui` 相对于官方 `codex` 的默认样式补充之一。
 
 默认情况下，UI palette 会使用内置的 `matrix`。如果你想换整套 UI 风格，用 `/theme-ui`；如果你只想换代码高亮，用 `/theme`。
 
