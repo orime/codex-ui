@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn desired_height_empty() {
         let widget = PendingThreadApprovals::new();
-        assert_eq!(widget.desired_height(40), 0);
+        assert_eq!(widget.desired_height(/*width*/ 40), 0);
     }
 
     #[test]
@@ -124,10 +124,11 @@ mod tests {
         widget.set_threads(vec!["Robie [explorer]".to_string()]);
 
         assert_snapshot!(
-            snapshot_rows(&widget, 40).replace(' ', "."),
+            snapshot_rows(&widget, /*width*/ 40).replace(' ', "."),
             @r"
-..!.Approval.needed.in.Robie.[explorer].
-..../agent.to.switch.threads............"
+        ..!.Approval.needed.in.Robie.[explorer].
+        ..../agent.to.switch.threads............
+        "
         );
     }
 
@@ -142,13 +143,14 @@ mod tests {
         ]);
 
         assert_snapshot!(
-            snapshot_rows(&widget, 44).replace(' ', "."),
+            snapshot_rows(&widget, /*width*/ 44).replace(' ', "."),
             @r"
-..!.Approval.needed.in.Main.[default].......
-..!.Approval.needed.in.Robie.[explorer].....
-..!.Approval.needed.in.Inspector............
-............................................
-..../agent.to.switch.threads................"
+        ..!.Approval.needed.in.Main.[default].......
+        ..!.Approval.needed.in.Robie.[explorer].....
+        ..!.Approval.needed.in.Inspector............
+        ............................................
+        ..../agent.to.switch.threads................
+        "
         );
     }
 }

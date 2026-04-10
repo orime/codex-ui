@@ -236,7 +236,10 @@ pub(crate) fn restore_runtime_theme_from_config() {
 }
 
 pub(crate) fn list_available_themes() -> Vec<String> {
-    UI_THEME_NAMES.iter().map(|name| (*name).to_string()).collect()
+    UI_THEME_NAMES
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect()
 }
 
 pub(crate) fn active_palette() -> UiPalette {
@@ -245,8 +248,10 @@ pub(crate) fn active_palette() -> UiPalette {
 
 pub(crate) fn palette_for_terminal_bg(terminal_bg: Option<(u8, u8, u8)>) -> UiPalette {
     let theme_name = current_theme_name();
-    palette_for_theme_name(theme_name.as_str(), terminal_bg)
-        .unwrap_or_else(|| palette_for_theme_name(DEFAULT_UI_THEME_NAME, terminal_bg).expect("default ui theme must exist"))
+    palette_for_theme_name(theme_name.as_str(), terminal_bg).unwrap_or_else(|| {
+        palette_for_theme_name(DEFAULT_UI_THEME_NAME, terminal_bg)
+            .expect("default ui theme must exist")
+    })
 }
 
 pub(crate) fn palette_for_theme_name(
@@ -271,16 +276,21 @@ pub(crate) fn syntax_theme_palette_for_theme_name(
     terminal_bg: Option<(u8, u8, u8)>,
 ) -> Option<UiSyntaxThemePalette> {
     let theme_name = normalize_theme_name(Some(name))?;
-    Some(build_syntax_theme_palette_for_theme_name(theme_name, terminal_bg))
+    Some(build_syntax_theme_palette_for_theme_name(
+        theme_name,
+        terminal_bg,
+    ))
 }
 
 fn build_syntax_theme_palette_for_theme_name(
     theme_name: &str,
     terminal_bg: Option<(u8, u8, u8)>,
 ) -> UiSyntaxThemePalette {
-    let spec = theme_specs()
-        .get(theme_name)
-        .unwrap_or_else(|| theme_specs().get(DEFAULT_UI_THEME_NAME).expect("default ui theme must exist"));
+    let spec = theme_specs().get(theme_name).unwrap_or_else(|| {
+        theme_specs()
+            .get(DEFAULT_UI_THEME_NAME)
+            .expect("default ui theme must exist")
+    });
     let use_light_variant = terminal_bg.is_some_and(is_light);
     let variant = if use_light_variant {
         &spec.light
@@ -374,13 +384,28 @@ fn build_syntax_theme_palette_for_theme_name(
     let code_block_text_rgb = variant
         .override_rgb("markdown-code-block", Some(background_rgb))
         .unwrap_or(text_rgb);
-    let safe_code_block_text_rgb =
-        ensure_contrast(code_block_text_rgb, code_block_background_rgb, text_rgb, 4.8);
-    let safe_text_rgb = ensure_contrast(text_rgb, code_block_background_rgb, safe_code_block_text_rgb, 4.8);
-    let background_secondary_rgb =
-        overlay(code_block_background_rgb, safe_text_rgb, if dark { 0.08 } else { 0.05 });
-    let background_deeper_rgb =
-        overlay(code_block_background_rgb, safe_text_rgb, if dark { 0.14 } else { 0.09 });
+    let safe_code_block_text_rgb = ensure_contrast(
+        code_block_text_rgb,
+        code_block_background_rgb,
+        text_rgb,
+        4.8,
+    );
+    let safe_text_rgb = ensure_contrast(
+        text_rgb,
+        code_block_background_rgb,
+        safe_code_block_text_rgb,
+        4.8,
+    );
+    let background_secondary_rgb = overlay(
+        code_block_background_rgb,
+        safe_text_rgb,
+        if dark { 0.08 } else { 0.05 },
+    );
+    let background_deeper_rgb = overlay(
+        code_block_background_rgb,
+        safe_text_rgb,
+        if dark { 0.14 } else { 0.09 },
+    );
     let diff_add_rgb = variant
         .override_rgb("diff-added-bg", Some(code_block_background_rgb))
         .or_else(|| variant.palette.diff_add_rgb(Some(background_rgb)))
@@ -396,37 +421,97 @@ fn build_syntax_theme_palette_for_theme_name(
         ensure_min_surface_delta(diff_add_rgb, code_block_background_rgb, success_rgb, dark);
     let safe_diff_delete_rgb =
         ensure_min_surface_delta(diff_delete_rgb, code_block_background_rgb, error_rgb, dark);
-    let safe_diff_add_foreground =
-        ensure_contrast(success_rgb, safe_diff_add_rgb, safe_code_block_text_rgb, 4.0);
-    let safe_diff_delete_foreground =
-        ensure_contrast(error_rgb, safe_diff_delete_rgb, safe_code_block_text_rgb, 4.0);
+    let safe_diff_add_foreground = ensure_contrast(
+        success_rgb,
+        safe_diff_add_rgb,
+        safe_code_block_text_rgb,
+        4.0,
+    );
+    let safe_diff_delete_foreground = ensure_contrast(
+        error_rgb,
+        safe_diff_delete_rgb,
+        safe_code_block_text_rgb,
+        4.0,
+    );
 
-    let safe_syntax_comment_rgb =
-        ensure_contrast(syntax_comment_rgb, code_block_background_rgb, safe_text_rgb, 2.6);
-    let safe_syntax_keyword_rgb =
-        ensure_contrast(syntax_keyword_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_function_rgb =
-        ensure_contrast(syntax_function_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_string_rgb =
-        ensure_contrast(syntax_string_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_number_rgb =
-        ensure_contrast(syntax_number_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_primitive_rgb =
-        ensure_contrast(syntax_primitive_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_variable_rgb =
-        ensure_contrast(syntax_variable_rgb, code_block_background_rgb, safe_text_rgb, 4.5);
-    let safe_syntax_property_rgb =
-        ensure_contrast(syntax_property_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_type_rgb =
-        ensure_contrast(syntax_type_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_constant_rgb =
-        ensure_contrast(syntax_constant_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_operator_rgb =
-        ensure_contrast(syntax_operator_rgb, code_block_background_rgb, safe_text_rgb, 3.0);
-    let safe_syntax_punctuation_rgb =
-        ensure_contrast(syntax_punctuation_rgb, code_block_background_rgb, safe_text_rgb, 3.2);
-    let safe_syntax_object_rgb =
-        ensure_contrast(syntax_object_rgb, code_block_background_rgb, safe_text_rgb, 3.2);
+    let safe_syntax_comment_rgb = ensure_contrast(
+        syntax_comment_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        2.6,
+    );
+    let safe_syntax_keyword_rgb = ensure_contrast(
+        syntax_keyword_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_function_rgb = ensure_contrast(
+        syntax_function_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_string_rgb = ensure_contrast(
+        syntax_string_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_number_rgb = ensure_contrast(
+        syntax_number_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_primitive_rgb = ensure_contrast(
+        syntax_primitive_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_variable_rgb = ensure_contrast(
+        syntax_variable_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        4.5,
+    );
+    let safe_syntax_property_rgb = ensure_contrast(
+        syntax_property_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_type_rgb = ensure_contrast(
+        syntax_type_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_constant_rgb = ensure_contrast(
+        syntax_constant_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_operator_rgb = ensure_contrast(
+        syntax_operator_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.0,
+    );
+    let safe_syntax_punctuation_rgb = ensure_contrast(
+        syntax_punctuation_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.2,
+    );
+    let safe_syntax_object_rgb = ensure_contrast(
+        syntax_object_rgb,
+        code_block_background_rgb,
+        safe_text_rgb,
+        3.2,
+    );
 
     UiSyntaxThemePalette {
         background: code_block_background_rgb,
@@ -461,9 +546,11 @@ fn build_syntax_theme_palette_for_theme_name(
 }
 
 fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u8)>) -> UiPalette {
-    let spec = theme_specs()
-        .get(theme_name)
-        .unwrap_or_else(|| theme_specs().get(DEFAULT_UI_THEME_NAME).expect("default ui theme must exist"));
+    let spec = theme_specs().get(theme_name).unwrap_or_else(|| {
+        theme_specs()
+            .get(DEFAULT_UI_THEME_NAME)
+            .expect("default ui theme must exist")
+    });
     let use_light_variant = terminal_bg.is_some_and(is_light);
     let variant = if use_light_variant {
         &spec.light
@@ -565,13 +652,24 @@ fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u
     let markdown_code_rgb = variant
         .override_rgb("markdown-code", Some(background_rgb))
         .unwrap_or(primary_rgb);
-    let inline_code_background_rgb =
-        overlay(background_rgb, markdown_code_rgb, if dark { 0.10 } else { 0.06 });
+    let inline_code_background_rgb = overlay(
+        background_rgb,
+        markdown_code_rgb,
+        if dark { 0.10 } else { 0.06 },
+    );
     let border_rgb = variant
         .override_rgb("border", Some(background_rgb))
         .unwrap_or_else(|| overlay(background_rgb, text_rgb, if dark { 0.18 } else { 0.20 }));
-    let user_message_bg_rgb = overlay(background_secondary_rgb, secondary_rgb, if dark { 0.10 } else { 0.05 });
-    let proposed_plan_bg_rgb = overlay(background_deeper_rgb, accent_rgb, if dark { 0.10 } else { 0.06 });
+    let user_message_bg_rgb = overlay(
+        background_secondary_rgb,
+        secondary_rgb,
+        if dark { 0.10 } else { 0.05 },
+    );
+    let proposed_plan_bg_rgb = overlay(
+        background_deeper_rgb,
+        accent_rgb,
+        if dark { 0.10 } else { 0.06 },
+    );
     let diff_add_rgb = variant
         .override_rgb("diff-added-bg", Some(code_block_background_rgb))
         .or_else(|| variant.palette.diff_add_rgb(Some(background_rgb)))
@@ -700,7 +798,10 @@ fn theme_specs() -> &'static HashMap<&'static str, UiThemeSpec> {
 
 fn normalize_theme_name(name: Option<&str>) -> Option<&'static str> {
     let name = name?;
-    UI_THEME_NAMES.iter().copied().find(|candidate| *candidate == name)
+    UI_THEME_NAMES
+        .iter()
+        .copied()
+        .find(|candidate| *candidate == name)
 }
 
 fn is_known_theme(name: &str) -> bool {
@@ -914,7 +1015,12 @@ fn softened_diff_background(base: Rgb, tint: Rgb, preferred_foreground: Rgb, dar
     }
 }
 
-fn ensure_min_surface_delta(candidate: Rgb, base: Rgb, preferred_foreground: Rgb, dark: bool) -> Rgb {
+fn ensure_min_surface_delta(
+    candidate: Rgb,
+    base: Rgb,
+    preferred_foreground: Rgb,
+    dark: bool,
+) -> Rgb {
     let min_surface_delta = 1.06;
     if contrast_ratio(candidate, base) >= min_surface_delta
         && contrast_ratio(preferred_foreground, candidate) >= 3.8

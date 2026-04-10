@@ -95,10 +95,10 @@ use crate::terminal_palette::default_bg;
 use crate::terminal_palette::indexed_color;
 use crate::terminal_palette::rgb_color;
 use crate::terminal_palette::stdout_color_level;
-use codex_core::git_info::get_git_repo_root;
-use codex_core::terminal::TerminalName;
-use codex_core::terminal::terminal_info;
+use codex_git_utils::get_git_repo_root;
 use codex_protocol::protocol::FileChange;
+use codex_terminal_detection::TerminalName;
+use codex_terminal_detection::terminal_info;
 
 /// Classifies a diff line for gutter sign rendering and style selection.
 ///
@@ -1361,7 +1361,7 @@ mod tests {
         assert_eq!(del_sign.bg, None);
     }
     fn diff_summary_for_tests(changes: &HashMap<PathBuf, FileChange>) -> Vec<RtLine<'static>> {
-        create_diff_summary(changes, &PathBuf::from("/"), 80)
+        create_diff_summary(changes, &PathBuf::from("/"), /*wrap_cols*/ 80)
     }
 
     fn snapshot_lines(name: &str, lines: Vec<RtLine<'static>>, width: u16, height: u16) {
@@ -1498,16 +1498,21 @@ mod tests {
 
         // Call the wrapping function directly so we can precisely control the width
         let lines = push_wrapped_diff_line_with_style_context(
-            1,
+            /*line_number*/ 1,
             DiffLineType::Insert,
             long_line,
-            80,
-            line_number_width(1),
+            /*width*/ 80,
+            line_number_width(/*max_line_number*/ 1),
             current_diff_render_style_context(),
         );
 
         // Render into a small terminal to capture the visual layout
-        snapshot_lines("wrap_behavior_insert", lines, 90, 8);
+        snapshot_lines(
+            "wrap_behavior_insert",
+            lines,
+            /*width*/ 90,
+            /*height*/ 8,
+        );
     }
 
     #[test]
@@ -1527,7 +1532,12 @@ mod tests {
 
         let lines = diff_summary_for_tests(&changes);
 
-        snapshot_lines("apply_update_block", lines, 80, 12);
+        snapshot_lines(
+            "apply_update_block",
+            lines,
+            /*width*/ 80,
+            /*height*/ 12,
+        );
     }
 
     #[test]
@@ -1547,7 +1557,12 @@ mod tests {
 
         let lines = diff_summary_for_tests(&changes);
 
-        snapshot_lines("apply_update_with_rename_block", lines, 80, 12);
+        snapshot_lines(
+            "apply_update_with_rename_block",
+            lines,
+            /*width*/ 80,
+            /*height*/ 12,
+        );
     }
 
     #[test]
@@ -1575,7 +1590,12 @@ mod tests {
 
         let lines = diff_summary_for_tests(&changes);
 
-        snapshot_lines("apply_multiple_files_block", lines, 80, 14);
+        snapshot_lines(
+            "apply_multiple_files_block",
+            lines,
+            /*width*/ 80,
+            /*height*/ 14,
+        );
     }
 
     #[test]
@@ -1590,7 +1610,12 @@ mod tests {
 
         let lines = diff_summary_for_tests(&changes);
 
-        snapshot_lines("apply_add_block", lines, 80, 10);
+        snapshot_lines(
+            "apply_add_block",
+            lines,
+            /*width*/ 80,
+            /*height*/ 10,
+        );
     }
 
     #[test]
@@ -1604,7 +1629,12 @@ mod tests {
         );
 
         let lines = diff_summary_for_tests(&changes);
-        snapshot_lines("apply_delete_block", lines, 80, 12);
+        snapshot_lines(
+            "apply_delete_block",
+            lines,
+            /*width*/ 80,
+            /*height*/ 12,
+        );
     }
 
     #[test]
@@ -1623,10 +1653,15 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 72);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 72);
 
         // Render with backend width wider than wrap width to avoid Paragraph auto-wrap.
-        snapshot_lines("apply_update_block_wraps_long_lines", lines, 80, 12);
+        snapshot_lines(
+            "apply_update_block_wraps_long_lines",
+            lines,
+            /*width*/ 80,
+            /*height*/ 12,
+        );
     }
 
     #[test]
@@ -1646,7 +1681,7 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 28);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 28);
         snapshot_lines_text("apply_update_block_wraps_long_lines_text", &lines);
     }
 
@@ -1673,7 +1708,7 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 80);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 80);
         snapshot_lines_text("apply_update_block_line_numbers_three_digits_text", &lines);
     }
 
@@ -1696,9 +1731,14 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &cwd, 80);
+        let lines = create_diff_summary(&changes, &cwd, /*wrap_cols*/ 80);
 
-        snapshot_lines("apply_update_block_relativizes_path", lines, 80, 10);
+        snapshot_lines(
+            "apply_update_block_relativizes_path",
+            lines,
+            /*width*/ 80,
+            /*height*/ 10,
+        );
     }
 
     #[test]
@@ -1712,11 +1752,11 @@ mod tests {
         let spans = &syntax_spans[0];
 
         let lines = push_wrapped_diff_line_with_syntax_and_style_context(
-            1,
+            /*line_number*/ 1,
             DiffLineType::Insert,
             long_rust,
-            80,
-            line_number_width(1),
+            /*width*/ 80,
+            line_number_width(/*max_line_number*/ 1),
             spans,
             current_diff_render_style_context(),
         );
@@ -1727,7 +1767,12 @@ mod tests {
             lines.len()
         );
 
-        snapshot_lines("syntax_highlighted_insert_wraps", lines, 90, 10);
+        snapshot_lines(
+            "syntax_highlighted_insert_wraps",
+            lines,
+            /*width*/ 90,
+            /*height*/ 10,
+        );
     }
 
     #[test]
@@ -1739,11 +1784,11 @@ mod tests {
         let spans = &syntax_spans[0];
 
         let lines = push_wrapped_diff_line_with_syntax_and_style_context(
-            1,
+            /*line_number*/ 1,
             DiffLineType::Insert,
             long_rust,
-            80,
-            line_number_width(1),
+            /*width*/ 80,
+            line_number_width(/*max_line_number*/ 1),
             spans,
             current_diff_render_style_context(),
         );
@@ -1753,45 +1798,54 @@ mod tests {
 
     #[test]
     fn ui_snapshot_diff_gallery_80x24() {
-        snapshot_diff_gallery("diff_gallery_80x24", 80, 24);
+        snapshot_diff_gallery("diff_gallery_80x24", /*width*/ 80, /*height*/ 24);
     }
 
     #[test]
     fn ui_snapshot_diff_gallery_94x35() {
-        snapshot_diff_gallery("diff_gallery_94x35", 94, 35);
+        snapshot_diff_gallery("diff_gallery_94x35", /*width*/ 94, /*height*/ 35);
     }
 
     #[test]
     fn ui_snapshot_diff_gallery_120x40() {
-        snapshot_diff_gallery("diff_gallery_120x40", 120, 40);
+        snapshot_diff_gallery(
+            "diff_gallery_120x40",
+            /*width*/ 120,
+            /*height*/ 40,
+        );
     }
 
     #[test]
     fn ui_snapshot_ansi16_insert_delete_no_background() {
         let mut lines = push_wrapped_diff_line_inner_with_theme_and_color_level(
-            1,
+            /*line_number*/ 1,
             DiffLineType::Insert,
             "added in ansi16 mode",
-            80,
-            line_number_width(2),
-            None,
+            /*width*/ 80,
+            line_number_width(/*max_line_number*/ 2),
+            /*syntax_spans*/ None,
             DiffTheme::Dark,
             DiffColorLevel::Ansi16,
             fallback_diff_backgrounds(DiffTheme::Dark, DiffColorLevel::Ansi16),
         );
         lines.extend(push_wrapped_diff_line_inner_with_theme_and_color_level(
-            2,
+            /*line_number*/ 2,
             DiffLineType::Delete,
             "deleted in ansi16 mode",
-            80,
-            line_number_width(2),
-            None,
+            /*width*/ 80,
+            line_number_width(/*max_line_number*/ 2),
+            /*syntax_spans*/ None,
             DiffTheme::Dark,
             DiffColorLevel::Ansi16,
             fallback_diff_backgrounds(DiffTheme::Dark, DiffColorLevel::Ansi16),
         ));
 
-        snapshot_lines("ansi16_insert_delete_no_background", lines, 40, 4);
+        snapshot_lines(
+            "ansi16_insert_delete_no_background",
+            lines,
+            /*width*/ 40,
+            /*height*/ 4,
+        );
     }
 
     #[test]
@@ -1889,7 +1943,7 @@ mod tests {
         );
         assert_eq!(
             style_line_bg_for(DiffLineType::Insert, backgrounds),
-            Style::default().bg(indexed_color(22))
+            Style::default().bg(indexed_color(/*index*/ 22))
         );
         assert_eq!(
             style_line_bg_for(DiffLineType::Delete, backgrounds),
@@ -2006,12 +2060,12 @@ mod tests {
     #[test]
     fn light_theme_wrapped_lines_keep_number_gutter_contrast() {
         let lines = push_wrapped_diff_line_inner_with_theme_and_color_level(
-            12,
+            /*line_number*/ 12,
             DiffLineType::Insert,
             "abcdefghij",
-            8,
-            line_number_width(12),
-            None,
+            /*width*/ 8,
+            line_number_width(/*max_line_number*/ 12),
+            /*syntax_spans*/ None,
             DiffTheme::Light,
             DiffColorLevel::TrueColor,
             fallback_diff_backgrounds(DiffTheme::Light, DiffColorLevel::TrueColor),
@@ -2043,8 +2097,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Ansi16,
                 TerminalName::WindowsTerminal,
-                false,
-                false,
+                /*has_wt_session*/ false,
+                /*has_force_color_override*/ false,
             ),
             DiffColorLevel::TrueColor
         );
@@ -2056,8 +2110,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Ansi16,
                 TerminalName::Unknown,
-                true,
-                false,
+                /*has_wt_session*/ true,
+                /*has_force_color_override*/ false,
             ),
             DiffColorLevel::TrueColor
         );
@@ -2069,8 +2123,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Ansi16,
                 TerminalName::WezTerm,
-                false,
-                false,
+                /*has_wt_session*/ false,
+                /*has_force_color_override*/ false,
             ),
             DiffColorLevel::Ansi16
         );
@@ -2082,8 +2136,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Unknown,
                 TerminalName::WindowsTerminal,
-                true,
-                false,
+                /*has_wt_session*/ true,
+                /*has_force_color_override*/ false,
             ),
             DiffColorLevel::TrueColor
         );
@@ -2095,8 +2149,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Unknown,
                 TerminalName::WindowsTerminal,
-                false,
-                false,
+                /*has_wt_session*/ false,
+                /*has_force_color_override*/ false,
             ),
             DiffColorLevel::Ansi16
         );
@@ -2108,8 +2162,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Ansi16,
                 TerminalName::WindowsTerminal,
-                false,
-                true,
+                /*has_wt_session*/ false,
+                /*has_force_color_override*/ true,
             ),
             DiffColorLevel::Ansi16
         );
@@ -2121,8 +2175,8 @@ mod tests {
             diff_color_level_for_terminal(
                 StdoutColorLevel::Ansi256,
                 TerminalName::WindowsTerminal,
-                true,
-                true,
+                /*has_wt_session*/ true,
+                /*has_force_color_override*/ true,
             ),
             DiffColorLevel::Ansi256
         );
@@ -2138,7 +2192,7 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 80);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 80);
         let has_rgb = lines.iter().any(|line| {
             line.spans
                 .iter()
@@ -2160,7 +2214,7 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 80);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 80);
         let has_rgb = lines.iter().any(|line| {
             line.spans
                 .iter()
@@ -2188,7 +2242,7 @@ mod tests {
     fn wrap_styled_spans_single_line() {
         // Content that fits in one line should produce exactly one chunk.
         let spans = vec![RtSpan::raw("short")];
-        let result = wrap_styled_spans(&spans, 80);
+        let result = wrap_styled_spans(&spans, /*max_cols*/ 80);
         assert_eq!(result.len(), 1);
     }
 
@@ -2197,7 +2251,7 @@ mod tests {
         // Content wider than max_cols should produce multiple chunks.
         let long_text = "a".repeat(100);
         let spans = vec![RtSpan::raw(long_text)];
-        let result = wrap_styled_spans(&spans, 40);
+        let result = wrap_styled_spans(&spans, /*max_cols*/ 40);
         assert!(
             result.len() >= 3,
             "100 chars at 40 cols should produce at least 3 lines, got {}",
@@ -2216,7 +2270,7 @@ mod tests {
             RtSpan::styled("aaaa", style_a), // 4 cols, fills line exactly at max_cols=4
             RtSpan::styled("bb", style_b),   // should start on a new line
         ];
-        let result = wrap_styled_spans(&spans, 4);
+        let result = wrap_styled_spans(&spans, /*max_cols*/ 4);
         assert_eq!(
             result.len(),
             2,
@@ -2236,7 +2290,7 @@ mod tests {
         let style = Style::default().fg(Color::Green);
         let text = "x".repeat(50);
         let spans = vec![RtSpan::styled(text, style)];
-        let result = wrap_styled_spans(&spans, 20);
+        let result = wrap_styled_spans(&spans, /*max_cols*/ 20);
         for chunk in &result {
             for span in chunk {
                 assert_eq!(span.style, style, "style should be preserved across wraps");
@@ -2249,7 +2303,7 @@ mod tests {
         // A tab should count as TAB_WIDTH columns, not zero.
         // With max_cols=8, a tab (4 cols) + "abcde" (5 cols) = 9 cols → must wrap.
         let spans = vec![RtSpan::raw("\tabcde")];
-        let result = wrap_styled_spans(&spans, 8);
+        let result = wrap_styled_spans(&spans, /*max_cols*/ 8);
         assert!(
             result.len() >= 2,
             "tab + 5 chars should exceed 8 cols and wrap, got {} line(s): {result:?}",
@@ -2260,7 +2314,7 @@ mod tests {
     #[test]
     fn wrap_styled_spans_wraps_before_first_overflowing_char() {
         let spans = vec![RtSpan::raw("abcd\t界")];
-        let result = wrap_styled_spans(&spans, 5);
+        let result = wrap_styled_spans(&spans, /*max_cols*/ 5);
 
         let line_text: Vec<String> = result
             .iter()
@@ -2290,11 +2344,11 @@ mod tests {
     fn fallback_wrapping_uses_display_width_for_tabs_and_wide_chars() {
         let width = 8;
         let lines = push_wrapped_diff_line_with_style_context(
-            1,
+            /*line_number*/ 1,
             DiffLineType::Insert,
             "abcd\t界🙂",
             width,
-            line_number_width(1),
+            line_number_width(/*max_line_number*/ 1),
             current_diff_render_style_context(),
         );
 
@@ -2335,7 +2389,7 @@ mod tests {
 
         // Should complete quickly (no per-line parser init). If guardrails
         // are bypassed this would be extremely slow.
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 80);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 80);
 
         // The diff rendered without timing out — the guardrails prevented
         // thousands of per-line parser initializations.  Verify we actually
@@ -2379,7 +2433,7 @@ mod tests {
             },
         );
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 80);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 80);
         let has_rgb = lines.iter().any(|line| {
             line.spans
                 .iter()
@@ -2418,7 +2472,7 @@ mod tests {
             .map(|span| span.style)
             .expect("expected highlighted span for second multiline string line");
 
-        let lines = create_diff_summary(&changes, &PathBuf::from("/"), 120);
+        let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 120);
         let actual_style = lines
             .iter()
             .flat_map(|line| line.spans.iter())

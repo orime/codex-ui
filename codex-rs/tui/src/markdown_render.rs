@@ -19,8 +19,8 @@ use crate::style::opencode_markdown_list_enumeration;
 use crate::style::opencode_markdown_list_item;
 use crate::style::opencode_markdown_strong;
 use crate::style::opencode_markdown_text;
-use crate::style::opencode_text_muted;
 use crate::style::opencode_text_emphasis;
+use crate::style::opencode_text_muted;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use codex_utils_string::normalize_markdown_hash_location_suffix;
@@ -1005,12 +1005,9 @@ where
 
     fn end_table_cell(&mut self) {
         if let Some(table) = self.table_state.as_mut() {
-            table.current_row.push(
-                table
-                    .current_cell
-                    .trim()
-                    .replace(TABLE_PIPE_SENTINEL, "|"),
-            );
+            table
+                .current_row
+                .push(table.current_cell.trim().replace(TABLE_PIPE_SENTINEL, "|"));
             table.current_cell.clear();
         }
     }
@@ -1165,7 +1162,11 @@ where
         let mut cursor = 0usize;
         while let Some(start_rel) = line[cursor..].find('$') {
             let start = cursor + start_rel;
-            let delimiter_len = if line[start..].starts_with("$$") { 2 } else { 1 };
+            let delimiter_len = if line[start..].starts_with("$$") {
+                2
+            } else {
+                1
+            };
             let search_from = start + delimiter_len;
             let closing = line[search_from..]
                 .find(if delimiter_len == 2 { "$$" } else { "$" })
@@ -1200,7 +1201,10 @@ where
     }
 
     fn try_render_list_lead(&mut self, line: &str) -> bool {
-        if !self.pending_list_lead_highlight || line.trim().is_empty() || !self.inline_styles.is_empty() {
+        if !self.pending_list_lead_highlight
+            || line.trim().is_empty()
+            || !self.inline_styles.is_empty()
+        {
             return false;
         }
 
@@ -1213,12 +1217,18 @@ where
             self.push_span(Span::styled(line[..leading_ws].to_string(), base_style));
         }
 
-        if let Some(colon_idx) = trimmed.find(['：', ':']).filter(|idx| *idx > 0 && *idx <= 20) {
+        if let Some(colon_idx) = trimmed
+            .find(['：', ':'])
+            .filter(|idx| *idx > 0 && *idx <= 20)
+        {
             let label = &trimmed[..colon_idx];
             let label_char_count = label.chars().count();
             let looks_like_label = label_char_count <= 12
                 && !label.chars().any(|c| {
-                    matches!(c, '，' | ',' | '。' | '.' | '？' | '?' | '！' | '!' | '；' | ';')
+                    matches!(
+                        c,
+                        '，' | ',' | '。' | '.' | '？' | '?' | '！' | '!' | '；' | ';'
+                    )
                 })
                 && !label.chars().any(char::is_whitespace)
                 && !label.starts_with('[');
@@ -1276,7 +1286,12 @@ where
             return Vec::new();
         }
 
-        let col_count = table.rows.iter().map(|(_, row)| row.len()).max().unwrap_or(0);
+        let col_count = table
+            .rows
+            .iter()
+            .map(|(_, row)| row.len())
+            .max()
+            .unwrap_or(0);
         if col_count == 0 {
             return Vec::new();
         }

@@ -5,11 +5,14 @@ use std::path::PathBuf;
 use codex_app_server_protocol::McpElicitationEnumSchema;
 use codex_app_server_protocol::McpElicitationPrimitiveSchema;
 use codex_app_server_protocol::McpElicitationSingleSelectEnumSchema;
+use codex_app_server_protocol::McpServerElicitationRequest;
+use codex_app_server_protocol::McpServerElicitationRequestParams;
 use codex_protocol::ThreadId;
 use codex_protocol::approvals::ElicitationAction;
 use codex_protocol::approvals::ElicitationRequest;
 use codex_protocol::approvals::ElicitationRequestEvent;
 use codex_protocol::mcp::RequestId as McpRequestId;
+#[cfg(test)]
 use codex_protocol::protocol::Op;
 use codex_protocol::user_input::TextElement;
 use crossterm::event::KeyCode;
@@ -26,7 +29,6 @@ use ratatui::widgets::Widget;
 use serde_json::Value;
 use unicode_width::UnicodeWidthStr;
 
-use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::CancellationEvent;
 use crate::bottom_pane::ChatComposer;
@@ -203,6 +205,36 @@ impl FooterTip {
 }
 
 impl McpServerElicitationFormRequest {
+    pub(crate) fn from_app_server_request(
+        thread_id: ThreadId,
+        request_id: McpRequestId,
+        request: McpServerElicitationRequestParams,
+    ) -> Option<Self> {
+        let McpServerElicitationRequestParams {
+            server_name,
+            request,
+            ..
+        } = request;
+        let McpServerElicitationRequest::Form {
+            meta,
+            message,
+            requested_schema,
+        } = request
+        else {
+            return None;
+        };
+
+        let requested_schema = serde_json::to_value(requested_schema).ok()?;
+        Self::from_parts(
+            thread_id,
+            server_name,
+            request_id,
+            meta,
+            message,
+            requested_schema,
+        )
+    }
+
     pub(crate) fn from_event(
         thread_id: ThreadId,
         request: ElicitationRequestEvent,
@@ -216,6 +248,24 @@ impl McpServerElicitationFormRequest {
             return None;
         };
 
+        Self::from_parts(
+            thread_id,
+            request.server_name,
+            request.id,
+            meta,
+            message,
+            requested_schema,
+        )
+    }
+
+    fn from_parts(
+        thread_id: ThreadId,
+        server_name: String,
+        request_id: McpRequestId,
+        meta: Option<Value>,
+        message: String,
+        requested_schema: Value,
+    ) -> Option<Self> {
         let tool_suggestion = parse_tool_suggestion_request(meta.as_ref());
         let is_tool_approval = meta
             .as_ref()
@@ -315,8 +365,8 @@ impl McpServerElicitationFormRequest {
 
         Some(Self {
             thread_id,
-            server_name: request.server_name,
-            request_id: request.id,
+            server_name,
+            request_id,
             message,
             approval_display_params,
             response_mode,
@@ -1085,16 +1135,14 @@ impl McpServerElicitationOverlay {
     }
 
     fn dispatch_cancel(&self) {
-        self.app_event_tx.send(AppEvent::SubmitThreadOp {
-            thread_id: self.request.thread_id,
-            op: Op::ResolveElicitation {
-                server_name: self.request.server_name.clone(),
-                request_id: self.request.request_id.clone(),
-                decision: ElicitationAction::Cancel,
-                content: None,
-                meta: None,
-            },
-        });
+        self.app_event_tx.resolve_elicitation(
+            self.request.thread_id,
+            self.request.server_name.clone(),
+            self.request.request_id.clone(),
+            ElicitationAction::Cancel,
+            /*content*/ None,
+            /*meta*/ None,
+        );
     }
 
     fn submit_answers(&mut self) {
@@ -1125,16 +1173,14 @@ impl McpServerElicitationOverlay {
                     Some(APPROVAL_CANCEL_VALUE) => (ElicitationAction::Cancel, None),
                     _ => (ElicitationAction::Cancel, None),
                 };
-            self.app_event_tx.send(AppEvent::SubmitThreadOp {
-                thread_id: self.request.thread_id,
-                op: Op::ResolveElicitation {
-                    server_name: self.request.server_name.clone(),
-                    request_id: self.request.request_id.clone(),
-                    decision,
-                    content: None,
-                    meta,
-                },
-            });
+            self.app_event_tx.resolve_elicitation(
+                self.request.thread_id,
+                self.request.server_name.clone(),
+                self.request.request_id.clone(),
+                decision,
+                /*content*/ None,
+                meta,
+            );
             if let Some(next) = self.queue.pop_front() {
                 self.request = next;
                 self.reset_for_request();
@@ -1151,16 +1197,14 @@ impl McpServerElicitationOverlay {
             .enumerate()
             .filter_map(|(idx, field)| self.field_value(idx).map(|value| (field.id.clone(), value)))
             .collect::<serde_json::Map<_, _>>();
-        self.app_event_tx.send(AppEvent::SubmitThreadOp {
-            thread_id: self.request.thread_id,
-            op: Op::ResolveElicitation {
-                server_name: self.request.server_name.clone(),
-                request_id: self.request.request_id.clone(),
-                decision: ElicitationAction::Accept,
-                content: Some(Value::Object(content)),
-                meta: None,
-            },
-        });
+        self.app_event_tx.resolve_elicitation(
+            self.request.thread_id,
+            self.request.server_name.clone(),
+            self.request.request_id.clone(),
+            ElicitationAction::Accept,
+            Some(Value::Object(content)),
+            /*meta*/ None,
+        );
         if let Some(next) = self.queue.pop_front() {
             self.request = next;
             self.reset_for_request();
@@ -1763,7 +1807,7 @@ mod tests {
                     },
                     "required": ["confirmed"],
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
@@ -1818,7 +1862,7 @@ mod tests {
                         }
                     },
                 }),
-                None,
+                /*meta*/ None,
             ),
         );
 
@@ -1830,7 +1874,7 @@ mod tests {
         let thread_id = ThreadId::default();
         let request = McpServerElicitationFormRequest::from_event(
             thread_id,
-            form_request("Allow this request?", Value::Null, None),
+            form_request("Allow this request?", Value::Null, /*meta*/ None),
         )
         .expect("expected approval fallback");
 
@@ -1884,7 +1928,11 @@ mod tests {
             form_request(
                 "Allow this request?",
                 empty_object_schema(),
-                tool_approval_meta(&[], None, None),
+                tool_approval_meta(
+                    &[],
+                    /*tool_params*/ None,
+                    /*tool_params_display*/ None,
+                ),
             ),
         )
         .expect("expected approval fallback");
@@ -1993,7 +2041,7 @@ mod tests {
     fn empty_unmarked_schema_falls_back() {
         let request = McpServerElicitationFormRequest::from_event(
             ThreadId::default(),
-            form_request("Empty form", empty_object_schema(), None),
+            form_request("Empty form", empty_object_schema(), /*meta*/ None),
         );
 
         assert_eq!(request, None);
@@ -2065,13 +2113,16 @@ mod tests {
                     },
                     "required": ["confirmed"],
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
-        let mut overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let mut overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
-        overlay.select_current_option(true);
+        overlay.select_current_option(/*committed*/ true);
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected resolution");
@@ -2111,18 +2162,21 @@ mod tests {
                         APPROVAL_PERSIST_SESSION_VALUE,
                         APPROVAL_PERSIST_ALWAYS_VALUE,
                     ],
-                    None,
-                    None,
+                    /*tool_params*/ None,
+                    /*tool_params_display*/ None,
                 ),
             ),
         )
         .expect("expected approval fallback");
-        let mut overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let mut overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         if let Some(answer) = overlay.current_answer_mut() {
             answer.selection.selected_idx = Some(1);
         }
-        overlay.select_current_option(true);
+        overlay.select_current_option(/*committed*/ true);
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected resolution");
@@ -2162,18 +2216,21 @@ mod tests {
                         APPROVAL_PERSIST_SESSION_VALUE,
                         APPROVAL_PERSIST_ALWAYS_VALUE,
                     ],
-                    None,
-                    None,
+                    /*tool_params*/ None,
+                    /*tool_params_display*/ None,
                 ),
             ),
         )
         .expect("expected approval fallback");
-        let mut overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let mut overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         if let Some(answer) = overlay.current_answer_mut() {
             answer.selection.selected_idx = Some(2);
         }
-        overlay.select_current_option(true);
+        overlay.select_current_option(/*committed*/ true);
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected resolution");
@@ -2218,11 +2275,14 @@ mod tests {
                     },
                     "required": ["confirmed"],
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
-        let mut overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let mut overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         assert_eq!(overlay.on_ctrl_c(), CancellationEvent::Handled);
 
@@ -2263,7 +2323,7 @@ mod tests {
                         }
                     },
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
@@ -2280,7 +2340,7 @@ mod tests {
                         }
                     },
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
@@ -2297,20 +2357,23 @@ mod tests {
                         }
                     },
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
-        let mut overlay = McpServerElicitationOverlay::new(first, tx, true, false, false);
+        let mut overlay = McpServerElicitationOverlay::new(
+            first, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         overlay.try_consume_mcp_server_elicitation_request(second);
         overlay.try_consume_mcp_server_elicitation_request(third);
-        overlay.select_current_option(true);
+        overlay.select_current_option(/*committed*/ true);
         overlay.submit_answers();
 
         assert_eq!(overlay.request.message, "Second");
 
-        overlay.select_current_option(true);
+        overlay.select_current_option(/*committed*/ true);
         overlay.submit_answers();
 
         assert_eq!(overlay.request.message, "Third");
@@ -2334,11 +2397,14 @@ mod tests {
                     },
                     "required": ["confirmed"],
                 }),
-                None,
+                /*meta*/ None,
             ),
         )
         .expect("expected supported form");
-        let overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         insta::assert_snapshot!(
             "mcp_server_elicitation_boolean_form",
@@ -2354,11 +2420,18 @@ mod tests {
             form_request(
                 "Allow this request?",
                 empty_object_schema(),
-                tool_approval_meta(&[], None, None),
+                tool_approval_meta(
+                    &[],
+                    /*tool_params*/ None,
+                    /*tool_params_display*/ None,
+                ),
             ),
         )
         .expect("expected approval fallback");
-        let overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         insta::assert_snapshot!(
             "mcp_server_elicitation_approval_form_without_schema",
@@ -2379,13 +2452,16 @@ mod tests {
                         APPROVAL_PERSIST_SESSION_VALUE,
                         APPROVAL_PERSIST_ALWAYS_VALUE,
                     ],
-                    None,
-                    None,
+                    /*tool_params*/ None,
+                    /*tool_params_display*/ None,
                 ),
             ),
         )
         .expect("expected approval fallback");
-        let overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         insta::assert_snapshot!(
             "mcp_server_elicitation_approval_form_with_session_persist",
@@ -2435,7 +2511,10 @@ mod tests {
             ),
         )
         .expect("expected approval fallback");
-        let overlay = McpServerElicitationOverlay::new(request, tx, true, false, false);
+        let overlay = McpServerElicitationOverlay::new(
+            request, tx, /*has_input_focus*/ true, /*enhanced_keys_supported*/ false,
+            /*disable_paste_burst*/ false,
+        );
 
         insta::assert_snapshot!(
             "mcp_server_elicitation_approval_form_with_param_summary",

@@ -16,7 +16,7 @@ use crate::markdown_render::render_markdown_text_with_width_and_cwd;
 use insta::assert_snapshot;
 
 fn render_markdown_text_for_cwd(input: &str, cwd: &Path) -> Text<'static> {
-    render_markdown_text_with_width_and_cwd(input, None, Some(cwd))
+    render_markdown_text_with_width_and_cwd(input, /*width*/ None, Some(cwd))
 }
 
 fn matrix_heading_style() -> Style {

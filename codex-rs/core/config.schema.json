@@ -338,9 +338,6 @@
             "apps": {
               "type": "boolean"
             },
-            "artifact": {
-              "type": "boolean"
-            },
             "child_agents_md": {
               "type": "boolean"
             },
@@ -422,13 +419,13 @@
             "multi_agent": {
               "type": "boolean"
             },
+            "multi_agent_v2": {
+              "type": "boolean"
+            },
             "personality": {
               "type": "boolean"
             },
             "plugins": {
-              "type": "boolean"
-            },
-            "powershell_utf8": {
               "type": "boolean"
             },
             "prevent_idle_sleep": {
@@ -485,6 +482,9 @@
             "tool_call_mcp_elicitation": {
               "type": "boolean"
             },
+            "tool_search": {
+              "type": "boolean"
+            },
             "tool_suggest": {
               "type": "boolean"
             },
@@ -501,9 +501,6 @@
               "type": "boolean"
             },
             "use_linux_sandbox_bwrap": {
-              "type": "boolean"
-            },
-            "voice_transcription": {
               "type": "boolean"
             },
             "web_search": {
@@ -742,6 +739,21 @@
         }
       ]
     },
+    "McpServerToolConfig": {
+      "additionalProperties": false,
+      "description": "Per-tool approval settings for a single MCP server tool.",
+      "properties": {
+        "approval_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppToolApproval"
+            }
+          ],
+          "description": "Approval mode for this tool."
+        }
+      },
+      "type": "object"
+    },
     "MemoriesToml": {
       "additionalProperties": false,
       "description": "Memories settings loaded from config.toml.",
@@ -804,10 +816,62 @@
       },
       "type": "object"
     },
+    "ModelProviderAuthInfo": {
+      "additionalProperties": false,
+      "description": "Configuration for obtaining a provider bearer token from a command.",
+      "properties": {
+        "args": {
+          "default": [],
+          "description": "Command arguments.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command": {
+          "description": "Command to execute. Bare names are resolved via `PATH`; paths are resolved against `cwd`.",
+          "type": "string"
+        },
+        "cwd": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AbsolutePathBuf"
+            }
+          ],
+          "description": "Working directory used when running the token command."
+        },
+        "refresh_interval_ms": {
+          "default": 300000,
+          "description": "Maximum age for the cached token before rerunning the command.",
+          "format": "uint64",
+          "minimum": 1.0,
+          "type": "integer"
+        },
+        "timeout_ms": {
+          "default": 5000,
+          "description": "Maximum time to wait for the token command to exit successfully.",
+          "format": "uint64",
+          "minimum": 1.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "type": "object"
+    },
     "ModelProviderInfo": {
       "additionalProperties": false,
       "description": "Serializable representation of a provider definition.",
       "properties": {
+        "auth": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ModelProviderAuthInfo"
+            }
+          ],
+          "description": "Command-backed bearer-token configuration for this provider."
+        },
         "base_url": {
           "description": "Base URL for the provider's OpenAI-compatible API.",
           "type": "string"
@@ -898,6 +962,16 @@
       ],
       "type": "object"
     },
+    "NetworkDomainPermissionToml": {
+      "enum": [
+        "allow",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "NetworkDomainPermissionsToml": {
+      "type": "object"
+    },
     "NetworkModeSchema": {
       "enum": [
         "limited",
@@ -911,20 +985,8 @@
         "allow_local_binding": {
           "type": "boolean"
         },
-        "allow_unix_sockets": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "allow_upstream_proxy": {
           "type": "boolean"
-        },
-        "allowed_domains": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
         },
         "dangerously_allow_all_unix_sockets": {
           "type": "boolean"
@@ -932,11 +994,8 @@
         "dangerously_allow_non_loopback_proxy": {
           "type": "boolean"
         },
-        "denied_domains": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+        "domains": {
+          "$ref": "#/definitions/NetworkDomainPermissionsToml"
         },
         "enable_socks5": {
           "type": "boolean"
@@ -955,8 +1014,21 @@
         },
         "socks_url": {
           "type": "string"
+        },
+        "unix_sockets": {
+          "$ref": "#/definitions/NetworkUnixSocketPermissionsToml"
         }
       },
+      "type": "object"
+    },
+    "NetworkUnixSocketPermissionToml": {
+      "enum": [
+        "allow",
+        "none"
+      ],
+      "type": "string"
+    },
+    "NetworkUnixSocketPermissionsToml": {
       "type": "object"
     },
     "Notice": {
@@ -1310,6 +1382,11 @@
           },
           "type": "object"
         },
+        "name": {
+          "default": null,
+          "description": "Legacy display-name field accepted for backward compatibility.",
+          "type": "string"
+        },
         "oauth_resource": {
           "default": null,
           "type": "string"
@@ -1340,6 +1417,13 @@
           "default": null,
           "format": "double",
           "type": "number"
+        },
+        "tools": {
+          "additionalProperties": {
+            "$ref": "#/definitions/McpServerToolConfig"
+          },
+          "default": null,
+          "type": "object"
         },
         "url": {
           "type": "string"
@@ -1524,13 +1608,21 @@
         "enabled": {
           "type": "boolean"
         },
+        "name": {
+          "description": "Name-based selector.",
+          "type": "string"
+        },
         "path": {
-          "$ref": "#/definitions/AbsolutePathBuf"
+          "allOf": [
+            {
+              "$ref": "#/definitions/AbsolutePathBuf"
+            }
+          ],
+          "description": "Path-based selector."
         }
       },
       "required": [
-        "enabled",
-        "path"
+        "enabled"
       ],
       "type": "object"
     },
@@ -1548,6 +1640,42 @@
         }
       },
       "type": "object"
+    },
+    "ToolSuggestConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "discoverables": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/ToolSuggestDiscoverable"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ToolSuggestDiscoverable": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/ToolSuggestDiscoverableType"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "type": "object"
+    },
+    "ToolSuggestDiscoverableType": {
+      "enum": [
+        "connector",
+        "plugin"
+      ],
+      "type": "string"
     },
     "ToolsToml": {
       "additionalProperties": false,
@@ -1629,6 +1757,14 @@
         "status_line": {
           "default": null,
           "description": "Ordered list of status line item identifiers.\n\nWhen set, the TUI renders the selected items as the status line. When unset, the TUI defaults to: `model-with-reasoning`, `context-remaining`, and `current-dir`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "terminal_title": {
+          "default": null,
+          "description": "Ordered list of terminal title item identifiers.\n\nWhen set, the TUI renders the selected items into the terminal window/tab title. When unset, the TUI defaults to: `spinner` and `project`.",
           "items": {
             "type": "string"
           },
@@ -1896,9 +2032,6 @@
         "apps": {
           "type": "boolean"
         },
-        "artifact": {
-          "type": "boolean"
-        },
         "child_agents_md": {
           "type": "boolean"
         },
@@ -1980,13 +2113,13 @@
         "multi_agent": {
           "type": "boolean"
         },
+        "multi_agent_v2": {
+          "type": "boolean"
+        },
         "personality": {
           "type": "boolean"
         },
         "plugins": {
-          "type": "boolean"
-        },
-        "powershell_utf8": {
           "type": "boolean"
         },
         "prevent_idle_sleep": {
@@ -2043,6 +2176,9 @@
         "tool_call_mcp_elicitation": {
           "type": "boolean"
         },
+        "tool_search": {
+          "type": "boolean"
+        },
         "tool_suggest": {
           "type": "boolean"
         },
@@ -2059,9 +2195,6 @@
           "type": "boolean"
         },
         "use_linux_sandbox_bwrap": {
-          "type": "boolean"
-        },
-        "voice_transcription": {
           "type": "boolean"
         },
         "web_search": {
@@ -2430,6 +2563,14 @@
       "format": "uint",
       "minimum": 0.0,
       "type": "integer"
+    },
+    "tool_suggest": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ToolSuggestConfig"
+        }
+      ],
+      "description": "Additional discoverable tools that can be suggested for installation."
     },
     "tools": {
       "allOf": [

@@ -113,7 +113,9 @@ pub(crate) fn validate_theme_name(name: Option<&str>, codex_home: Option<&Path>)
         .map(|home| custom_theme_path(name, home).display().to_string())
         .unwrap_or_else(|| format!("$CODEX_HOME/themes/{name}.tmTheme"));
     // Bundled themes always resolve.
-    if parse_theme_name(name).is_some() || crate::ui_theme::resolve_syntax_theme_alias(name).is_some() {
+    if parse_theme_name(name).is_some()
+        || crate::ui_theme::resolve_syntax_theme_alias(name).is_some()
+    {
         return None;
     }
     // Custom themes must parse successfully; an unreadable/invalid file should
@@ -180,7 +182,6 @@ fn parse_theme_name(name: &str) -> Option<EmbeddedThemeName> {
 fn custom_theme_path(name: &str, codex_home: &Path) -> PathBuf {
     codex_home.join("themes").join(format!("{name}.tmTheme"))
 }
-
 
 fn build_ui_syntax_theme(name: &str) -> Option<Theme> {
     let palette = crate::ui_theme::syntax_theme_palette_for_theme_name(
@@ -266,12 +267,42 @@ fn build_ui_syntax_theme(name: &str) -> Option<Theme> {
                 None,
                 None,
             ),
-            theme_item("support.type.object.module, variable.other.object, support.module", syntect_rgb(palette.syntax_object), None, None),
-            theme_item("variable, variable.other, variable.parameter, meta.parameter, parameter, field", syntect_rgb(palette.syntax_variable), None, None),
-            theme_item("variable.member, property", syntect_rgb(palette.syntax_property), None, None),
-            theme_item("punctuation, punctuation.bracket, variable.parameter.function", syntect_rgb(palette.syntax_punctuation), None, None),
-            theme_item("variable.builtin, type.builtin, function.builtin, module.builtin, constant.builtin, variable.language", syntect_rgb(palette.error), None, None),
-            theme_item("string.escape, string.regexp, keyword.conditional.ternary", syntect_rgb(palette.syntax_operator), None, None),
+            theme_item(
+                "support.type.object.module, variable.other.object, support.module",
+                syntect_rgb(palette.syntax_object),
+                None,
+                None,
+            ),
+            theme_item(
+                "variable, variable.other, variable.parameter, meta.parameter, parameter, field",
+                syntect_rgb(palette.syntax_variable),
+                None,
+                None,
+            ),
+            theme_item(
+                "variable.member, property",
+                syntect_rgb(palette.syntax_property),
+                None,
+                None,
+            ),
+            theme_item(
+                "punctuation, punctuation.bracket, variable.parameter.function",
+                syntect_rgb(palette.syntax_punctuation),
+                None,
+                None,
+            ),
+            theme_item(
+                "variable.builtin, type.builtin, function.builtin, module.builtin, constant.builtin, variable.language",
+                syntect_rgb(palette.error),
+                None,
+                None,
+            ),
+            theme_item(
+                "string.escape, string.regexp, keyword.conditional.ternary",
+                syntect_rgb(palette.syntax_operator),
+                None,
+                None,
+            ),
             theme_item(
                 "markup.inserted, diff.inserted",
                 syntect_rgb(palette.diff_add_foreground),
@@ -302,14 +333,54 @@ fn build_ui_syntax_theme(name: &str) -> Option<Theme> {
                 Some(syntect_rgb(palette.diff_context)),
                 None,
             ),
-            theme_item("markup.heading", syntect_rgb(palette.syntax_function), None, Some(FontStyle::BOLD)),
-            theme_item("markup.bold, markup.strong", syntect_rgb(palette.syntax_number), None, Some(FontStyle::BOLD)),
-            theme_item("markup.italic", syntect_rgb(palette.syntax_keyword), None, Some(FontStyle::ITALIC)),
-            theme_item("markup.list, markup.list.checked, markup.list.unchecked", syntect_rgb(palette.syntax_property), None, None),
-            theme_item("markup.quote", syntect_rgb(palette.syntax_comment), None, Some(FontStyle::ITALIC)),
-            theme_item("markup.link, string.special.url, markup.link.url", syntect_rgb(palette.syntax_property), None, None),
-            theme_item("markup.link.label, label", syntect_rgb(palette.syntax_function), None, None),
-            theme_item("markup.raw, markup.raw.block", syntect_rgb(palette.code_block_text), None, None),
+            theme_item(
+                "markup.heading",
+                syntect_rgb(palette.syntax_function),
+                None,
+                Some(FontStyle::BOLD),
+            ),
+            theme_item(
+                "markup.bold, markup.strong",
+                syntect_rgb(palette.syntax_number),
+                None,
+                Some(FontStyle::BOLD),
+            ),
+            theme_item(
+                "markup.italic",
+                syntect_rgb(palette.syntax_keyword),
+                None,
+                Some(FontStyle::ITALIC),
+            ),
+            theme_item(
+                "markup.list, markup.list.checked, markup.list.unchecked",
+                syntect_rgb(palette.syntax_property),
+                None,
+                None,
+            ),
+            theme_item(
+                "markup.quote",
+                syntect_rgb(palette.syntax_comment),
+                None,
+                Some(FontStyle::ITALIC),
+            ),
+            theme_item(
+                "markup.link, string.special.url, markup.link.url",
+                syntect_rgb(palette.syntax_property),
+                None,
+                None,
+            ),
+            theme_item(
+                "markup.link.label, label",
+                syntect_rgb(palette.syntax_function),
+                None,
+                None,
+            ),
+            theme_item(
+                "markup.raw, markup.raw.block",
+                syntect_rgb(palette.code_block_text),
+                None,
+                None,
+            ),
             theme_item(
                 "markup.raw.inline",
                 syntect_rgb(palette.syntax_string),
@@ -332,25 +403,120 @@ fn syntect_rgb(color: (u8, u8, u8)) -> SyntectColor {
 
 fn syntect_color(color: RtColor) -> SyntectColor {
     match color {
-        RtColor::Rgb(r, g, b) => SyntectColor { r, g, b, a: OPAQUE_ALPHA },
-        RtColor::Indexed(i) => SyntectColor { r: i, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Reset => SyntectColor { r: 0, g: 0, b: 0, a: ANSI_ALPHA_DEFAULT },
-        RtColor::Black => SyntectColor { r: 0, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Red => SyntectColor { r: 1, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Green => SyntectColor { r: 2, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Yellow => SyntectColor { r: 3, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Blue => SyntectColor { r: 4, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Magenta => SyntectColor { r: 5, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Cyan => SyntectColor { r: 6, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::Gray => SyntectColor { r: 7, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::DarkGray => SyntectColor { r: 8, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::LightRed => SyntectColor { r: 9, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::LightGreen => SyntectColor { r: 10, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::LightYellow => SyntectColor { r: 11, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::LightBlue => SyntectColor { r: 12, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::LightMagenta => SyntectColor { r: 13, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::LightCyan => SyntectColor { r: 14, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
-        RtColor::White => SyntectColor { r: 15, g: 0, b: 0, a: ANSI_ALPHA_INDEX },
+        RtColor::Rgb(r, g, b) => SyntectColor {
+            r,
+            g,
+            b,
+            a: OPAQUE_ALPHA,
+        },
+        RtColor::Indexed(i) => SyntectColor {
+            r: i,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Reset => SyntectColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_DEFAULT,
+        },
+        RtColor::Black => SyntectColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Red => SyntectColor {
+            r: 1,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Green => SyntectColor {
+            r: 2,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Yellow => SyntectColor {
+            r: 3,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Blue => SyntectColor {
+            r: 4,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Magenta => SyntectColor {
+            r: 5,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Cyan => SyntectColor {
+            r: 6,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::Gray => SyntectColor {
+            r: 7,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::DarkGray => SyntectColor {
+            r: 8,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::LightRed => SyntectColor {
+            r: 9,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::LightGreen => SyntectColor {
+            r: 10,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::LightYellow => SyntectColor {
+            r: 11,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::LightBlue => SyntectColor {
+            r: 12,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::LightMagenta => SyntectColor {
+            r: 13,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::LightCyan => SyntectColor {
+            r: 14,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
+        RtColor::White => SyntectColor {
+            r: 15,
+            g: 0,
+            b: 0,
+            a: ANSI_ALPHA_INDEX,
+        },
     }
 }
 
@@ -506,7 +672,9 @@ fn scope_background_rgb(highlighter: &Highlighter<'_>, scope_name: &str) -> Opti
 pub(crate) fn configured_theme_name() -> String {
     // Explicit user override?
     if let Some(Some(name)) = THEME_OVERRIDE.get() {
-        if parse_theme_name(name).is_some() || crate::ui_theme::resolve_syntax_theme_alias(name).is_some() {
+        if parse_theme_name(name).is_some()
+            || crate::ui_theme::resolve_syntax_theme_alias(name).is_some()
+        {
             return name.clone();
         }
         if let Some(Some(home)) = CODEX_HOME.get()
@@ -954,7 +1122,7 @@ mod tests {
     }
 
     fn unique_foreground_colors_for_theme(theme_name: &str) -> Vec<String> {
-        let theme = resolve_theme_by_name(theme_name, None)
+        let theme = resolve_theme_by_name(theme_name, /*codex_home*/ None)
             .unwrap_or_else(|| panic!("expected built-in theme {theme_name} to resolve"));
         let lines = highlight_to_line_spans_with_theme(
             "fn main() { let answer = 42; println!(\"hello\"); }\n",
@@ -1204,13 +1372,13 @@ mod tests {
 
     #[test]
     fn ansi_palette_color_maps_ansi_white_to_gray() {
-        assert_eq!(ansi_palette_color(0x07), RtColor::Gray);
+        assert_eq!(ansi_palette_color(/*index*/ 0x07), RtColor::Gray);
     }
 
     #[test]
     fn ansi_family_themes_use_terminal_palette_colors_not_rgb() {
         for theme_name in ["ansi", "base16", "base16-256"] {
-            let theme = resolve_theme_by_name(theme_name, None)
+            let theme = resolve_theme_by_name(theme_name, /*codex_home*/ None)
                 .unwrap_or_else(|| panic!("expected built-in theme {theme_name} to resolve"));
             let lines = highlight_to_line_spans_with_theme(
                 "fn main() { let answer = 42; println!(\"hello\"); }\n",
@@ -1300,7 +1468,11 @@ mod tests {
         let matrix_colors = unique_foreground_colors_for_theme("ui:matrix");
         let dracula_colors = unique_foreground_colors_for_theme("ui:dracula");
         assert_ne!(matrix_colors, dracula_colors);
-        assert!(matrix_colors.iter().any(|color| color.contains("Rgb(199, 112, 255)")));
+        assert!(
+            matrix_colors
+                .iter()
+                .any(|color| color.contains("Rgb(199, 112, 255)"))
+        );
     }
 
     #[test]
@@ -1448,8 +1620,8 @@ mod tests {
 
     #[test]
     fn bundled_theme_can_provide_diff_scope_backgrounds() {
-        let theme =
-            resolve_theme_by_name("github", None).expect("expected built-in GitHub theme to load");
+        let theme = resolve_theme_by_name("github", /*codex_home*/ None)
+            .expect("expected built-in GitHub theme to load");
         let rgbs = diff_scope_background_rgbs_for_theme(&theme);
         assert!(
             rgbs.inserted.is_some() && rgbs.deleted.is_some(),
@@ -1567,13 +1739,13 @@ mod tests {
     #[test]
     fn validate_theme_name_none_for_bundled() {
         // Bundled themes should never produce a warning.
-        assert!(validate_theme_name(Some("dracula"), None).is_none());
+        assert!(validate_theme_name(Some("dracula"), /*codex_home*/ None).is_none());
         assert!(validate_theme_name(Some("nord"), Some(Path::new("/nonexistent"))).is_none());
     }
 
     #[test]
     fn validate_theme_name_none_when_no_override() {
-        assert!(validate_theme_name(None, None).is_none());
+        assert!(validate_theme_name(/*name*/ None, /*codex_home*/ None).is_none());
     }
 
     #[test]

@@ -59,7 +59,9 @@ use codex_api::common::ResponsesWsRequest;
 use codex_api::create_text_param_for_request;
 use codex_api::error::ApiError;
 use codex_api::requests::responses::Compression;
+use codex_api::response_create_client_metadata;
 use codex_otel::SessionTelemetry;
+use codex_otel::current_span_w3c_trace_context;
 
 use codex_protocol::ThreadId;
 use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
@@ -69,6 +71,8 @@ use codex_protocol::models::ResponseItem;
 use codex_protocol::openai_models::ModelInfo;
 use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use codex_protocol::protocol::SessionSource;
+use codex_protocol::protocol::W3cTraceContext;
+use codex_tools::create_tools_json_for_responses_api;
 use eventsource_stream::Event;
 use eventsource_stream::EventStreamError;
 use futures::StreamExt;
@@ -100,11 +104,11 @@ use crate::error::Result;
 use crate::flags::CODEX_RS_SSE_FIXTURE;
 use crate::model_provider_info::ModelProviderInfo;
 use crate::model_provider_info::WireApi;
+use crate::provider_auth::auth_manager_for_provider;
 use crate::response_debug_context::extract_response_debug_context;
 use crate::response_debug_context::extract_response_debug_context_from_api_error;
 use crate::response_debug_context::telemetry_api_error_message;
 use crate::response_debug_context::telemetry_transport_error_message;
-use crate::tools::spec::create_tools_json_for_responses_api;
 use crate::util::FeedbackRequestTags;
 use crate::util::emit_feedback_auth_recovery_tags;
 use crate::util::emit_feedback_request_tags_with_auth_env;
@@ -258,6 +262,7 @@ impl ModelClient {
         include_timing_metrics: bool,
         beta_features_header: Option<String>,
     ) -> Self {
+        let auth_manager = auth_manager_for_provider(auth_manager, &provider);
         let codex_api_key_env_enabled = auth_manager
             .as_ref()
             .is_some_and(|manager| manager.codex_api_key_env_enabled());
@@ -289,6 +294,10 @@ impl ModelClient {
             websocket_session: self.take_cached_websocket_session(),
             turn_state: Arc::new(OnceLock::new()),
         }
+    }
+
+    pub(crate) fn auth_manager(&self) -> Option<Arc<AuthManager>> {
+        self.state.auth_manager.clone()
     }
 
     fn take_cached_websocket_session(&self) -> WebsocketSession {
@@ -1099,6 +1108,7 @@ impl ModelClientSession {
         service_tier: Option<ServiceTier>,
         turn_metadata_header: Option<&str>,
         warmup: bool,
+        request_trace: Option<W3cTraceContext>,
     ) -> Result<WebsocketStreamOutcome> {
         let auth_manager = self.client.state.auth_manager.clone();
 
@@ -1125,7 +1135,10 @@ impl ModelClientSession {
                 service_tier,
             )?;
             let mut ws_payload = ResponseCreateWsRequest {
-                client_metadata: build_ws_client_metadata(turn_metadata_header),
+                client_metadata: response_create_client_metadata(
+                    build_ws_client_metadata(turn_metadata_header),
+                    request_trace.as_ref(),
+                ),
                 ..ResponseCreateWsRequest::from(&request)
             };
             if warmup {
@@ -1249,6 +1262,7 @@ impl ModelClientSession {
                 service_tier,
                 turn_metadata_header,
                 /*warmup*/ true,
+                current_span_w3c_trace_context(),
             )
             .await
         {
@@ -1292,6 +1306,7 @@ impl ModelClientSession {
         match wire_api {
             WireApi::Responses => {
                 if self.client.responses_websocket_enabled() {
+                    let request_trace = current_span_w3c_trace_context();
                     match self
                         .stream_responses_websocket(
                             prompt,
@@ -1302,6 +1317,7 @@ impl ModelClientSession {
                             service_tier,
                             turn_metadata_header,
                             /*warmup*/ false,
+                            request_trace,
                         )
                         .await?
                     {
@@ -1520,7 +1536,7 @@ impl AuthRequestTelemetryContext {
         Self {
             auth_mode: auth_mode.map(|mode| match mode {
                 AuthMode::ApiKey => "ApiKey",
-                AuthMode::Chatgpt => "Chatgpt",
+                AuthMode::Chatgpt | AuthMode::ChatgptAuthTokens => "Chatgpt",
             }),
             auth_header_attached: api_auth.auth_header_attached(),
             auth_header_name: api_auth.auth_header_name(),

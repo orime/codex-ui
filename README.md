@@ -17,9 +17,11 @@
 - 附带 `opencode-matrix.tmTheme`
 - 不覆盖用户原本安装的 `codex`
 
-当前本地基线来自上游提交：
+当前已对齐到 OpenAI 官方最新正式版：
 
-- `a3613035f32a45146297a74e058a8c70b91c56c2`
+- 上游 tag：`rust-v0.118.0`
+- 发布时间：`2026-03-31`
+- 本仓库建议发行号示例：`v0.118.0-ui.1`
 
 ## 效果示例
 
@@ -181,8 +183,8 @@ codex-ui --no-alt-screen
 
 ```sh
 cd /Users/orime/codex-ui
-git tag v0.114.0-ui.1
-git push origin v0.114.0-ui.1
+git tag v0.118.0-ui.1
+git push origin v0.118.0-ui.1
 ```
 
 如果 tag push 后没有触发 workflow，请检查：
@@ -208,11 +210,19 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
 
 它会把二进制重新封装成 Release 产物格式。
 
+如果你只是做本地联调验证，也可以使用：
+
+```sh
+cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
+./scripts/link-local-codex-ui.sh
+codex-ui --no-alt-screen
+```
+
 ## 发布流程
 
-1. 从上游 `openai/codex` 同步最新代码
-2. 合入本仓库的 UI 改动
-3. 打 tag，例如 `v0.114.0-ui.1`
+1. 从上游 `openai/codex` 同步到当前正式版 `rust-v0.118.0`
+2. 合入本仓库的 UI 改动并完成本地构建验证
+3. 打 tag，例如 `v0.118.0-ui.1`
 4. 推送 tag
 5. GitHub Actions 自动构建并发布 Release
 
@@ -233,7 +243,7 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
 
 - 保持独立命令形态，不要覆盖系统里的 `codex`
 - 尽量把改动限制在 `codex-rs/tui` 和主题资产
-- 版本号跟随上游，例如 `v0.114.0-ui.1`
+- 版本号跟随上游，例如 `v0.118.0-ui.1`
 
 ## 许可与归属
 
