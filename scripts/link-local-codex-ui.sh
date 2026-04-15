@@ -13,7 +13,15 @@ case "$PROFILE" in
 esac
 
 BIN="${CODEX_UI_BINARY_PATH:-$ROOT/codex-rs/target/$PROFILE/codex}"
-LINK_TARGET="${1:-$HOME/.n/bin/codex-ui}"
+LINK_TARGET="${1:-$HOME/.n/bin/codex-ui-dev}"
+LINK_BASENAME="$(basename "$LINK_TARGET")"
+
+if [ "$LINK_BASENAME" = "codex-ui" ] && [ "${CODEX_UI_ALLOW_OVERWRITE_RELEASE:-0}" != "1" ]; then
+  echo "refusing to overwrite release command: $LINK_TARGET" >&2
+  echo "local development launcher now defaults to codex-ui-dev" >&2
+  echo "if you really want to overwrite codex-ui, rerun with CODEX_UI_ALLOW_OVERWRITE_RELEASE=1" >&2
+  exit 1
+fi
 
 if [ ! -x "$BIN" ]; then
   echo "missing local $PROFILE binary: $BIN" >&2

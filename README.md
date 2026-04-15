@@ -90,6 +90,20 @@ codex-ui
 - `/theme-ui` 切换整套 UI palette
 - 默认 UI 主题为 `matrix`
 
+## 命令约定
+
+从现在开始，这个仓库固定区分两条链路：
+
+- `codex-ui`：正式使用命令，只指向 GitHub Release 安装版
+- `codex-ui-dev`：本地开发联调命令，只指向你当前工作区编译出来的二进制
+
+这两个命令的职责不要再混用：
+
+- 日常使用、稳定体验、验证 release 包：用 `codex-ui`
+- 本地改 UI、联调 TUI、验证刚编译出的改动：用 `codex-ui-dev`
+
+仓库里的本地联调脚本现在默认只会生成 `codex-ui-dev`，不会再默认覆盖 `codex-ui`。
+
 ### 手动安装
 
 从 [Releases](https://github.com/orime/codex-ui/releases) 下载对应平台压缩包，解压后会得到：
@@ -111,32 +125,44 @@ codex-ui
 
 ## 本地开发验证
 
-开发时不要把 `codex-ui` 指到某个历史复制产物，否则很容易出现“明明编译了，实际跑的还是旧版本”。
+开发时不要再把 `codex-ui` 指到工作区里的本地编译产物，否则很容易出现两类问题：
+
+- 明明重新编译了，实际跑的还是旧版本
+- 一旦删掉 `target`，平时日常使用的 `codex-ui` 也跟着坏掉
 
 推荐流程：
 
 ```sh
 cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
 ./scripts/link-local-codex-ui.sh
-codex-ui --no-alt-screen
+codex-ui-dev --no-alt-screen
 ```
 
-这个脚本会写入一个本地 `codex-ui` 启动器到：
+这个脚本现在默认会写入一个本地 `codex-ui-dev` 启动器到：
 
-- `~/.n/bin/codex-ui`
+- `~/.n/bin/codex-ui-dev`
 
 这个启动器默认绑定：
 
 - `codex-rs/target/debug/codex`
 - `-c 'tui.theme="opencode-matrix"'`
 
-这样以后每次重新编译，本地 `codex-ui` 都会天然使用最新构建，同时和 GitHub Release 保持一致的 `opencode-matrix` 绑定语义。
+这样以后每次重新编译，本地 `codex-ui-dev` 都会天然使用最新构建，同时正式使用的 `codex-ui` 仍然保留为 release 安装版。
 
-如果你要把本地 `codex-ui` 切到 release 构建：
+如果你要把本地开发命令切到 release 构建进行对照验证：
 
 ```sh
 CODEX_UI_PROFILE=release ./scripts/link-local-codex-ui.sh
+codex-ui-dev --no-alt-screen
 ```
+
+如果你真的想手动覆盖正式命令 `codex-ui`，脚本会默认拒绝。只有显式带上下面这个开关时才会放行：
+
+```sh
+CODEX_UI_ALLOW_OVERWRITE_RELEASE=1 ./scripts/link-local-codex-ui.sh ~/.n/bin/codex-ui
+```
+
+不建议这么做，除非你就是要临时复刻一个历史问题。
 
 ## 工作方式
 
@@ -230,7 +256,7 @@ cargo +stable build --manifest-path codex-rs/Cargo.toml --release --bin codex
 ```sh
 cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
 ./scripts/link-local-codex-ui.sh
-codex-ui --no-alt-screen
+codex-ui-dev --no-alt-screen
 ```
 
 ## 发布流程

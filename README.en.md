@@ -56,34 +56,60 @@ After launch:
 - `/theme-ui` switches the full UI palette
 - the default UI theme is `matrix`
 
+## Command Contract
+
+This repository now treats the two launch paths as separate products:
+
+- `codex-ui`: the stable user-facing command, reserved for the GitHub Release install
+- `codex-ui-dev`: the local development command, reserved for binaries built from your working tree
+
+Do not mix those responsibilities:
+
+- use `codex-ui` for daily use and release verification
+- use `codex-ui-dev` for local UI work and freshly compiled builds
+
+The local linking helper now writes `codex-ui-dev` by default and no longer overwrites `codex-ui` unless you explicitly force it.
+
 ## Local Development Verification
 
-During local UI work, do not keep `codex-ui` pointed at an old copied binary. That is the main reason rebuilds appear to "do nothing".
+During local UI work, do not point `codex-ui` at a workspace build. That causes two predictable failures:
+
+- rebuilds appear to "do nothing" because you are accidentally launching an old binary
+- deleting `target` breaks your day-to-day `codex-ui` command
 
 Recommended loop:
 
 ```sh
 cargo +stable build --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
 ./scripts/link-local-codex-ui.sh
-codex-ui --no-alt-screen
+codex-ui-dev --no-alt-screen
 ```
 
-The helper script writes a local `codex-ui` launcher to:
+The helper script now writes a local `codex-ui-dev` launcher to:
 
-- `~/.n/bin/codex-ui`
+- `~/.n/bin/codex-ui-dev`
 
 That launcher binds:
 
 - `codex-rs/target/debug/codex`
 - `-c 'tui.theme="opencode-matrix"'`
 
-So every rebuild is reflected immediately in your local `codex-ui`, while keeping the same `opencode-matrix` binding used by the GitHub release assets.
+So every rebuild is reflected immediately in your local `codex-ui-dev`, while the stable `codex-ui` command continues to point at the release install.
 
-If you want local `codex-ui` to use the release build instead:
+If you want the local development command to use the release build instead:
 
 ```sh
 CODEX_UI_PROFILE=release ./scripts/link-local-codex-ui.sh
+codex-ui-dev --no-alt-screen
 ```
+
+If you really want to overwrite the stable `codex-ui` command, the script now refuses by default. You must opt in explicitly:
+
+```sh
+CODEX_UI_ALLOW_OVERWRITE_RELEASE=1 ./scripts/link-local-codex-ui.sh ~/.n/bin/codex-ui
+```
+
+That is intentionally not the normal workflow.
 
 ## How It Works
 
