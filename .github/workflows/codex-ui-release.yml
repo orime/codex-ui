@@ -69,7 +69,7 @@ jobs:
 
       - name: Build codex binary
         working-directory: codex-rs
-        run: cargo build --locked --target ${{ matrix.target }} --release --bin codex
+        run: cargo build --target ${{ matrix.target }} --release --bin codex
 
       - name: Package release asset
         run: ./scripts/package-codex-ui-release.sh ${{ matrix.target }} dist
