@@ -158,21 +158,30 @@ struct PickerPage {
 pub async fn run_resume_picker(
     tui: &mut Tui,
     config: &Config,
-    show_all: bool,
+    show_all_paths: bool,
+    show_all_providers: bool,
 ) -> Result<SessionSelection> {
-    run_session_picker(tui, config, show_all, SessionPickerAction::Resume).await
+    run_session_picker(
+        tui,
+        config,
+        show_all_paths,
+        show_all_providers,
+        SessionPickerAction::Resume,
+    )
+    .await
 }
 
 pub async fn run_resume_picker_with_app_server(
     tui: &mut Tui,
     config: &Config,
-    show_all: bool,
+    show_all_paths: bool,
+    show_all_providers: bool,
     include_non_interactive: bool,
     app_server: AppServerSession,
 ) -> Result<SessionSelection> {
     let (bg_tx, bg_rx) = mpsc::unbounded_channel();
     let is_remote = app_server.is_remote();
-    let cwd_filter = if show_all {
+    let cwd_filter = if show_all_paths {
         None
     } else {
         app_server.remote_cwd_override().map(Path::to_path_buf)
@@ -180,7 +189,8 @@ pub async fn run_resume_picker_with_app_server(
     run_session_picker_with_loader(
         tui,
         config,
-        show_all,
+        show_all_paths,
+        show_all_providers,
         SessionPickerAction::Resume,
         is_remote,
         spawn_app_server_page_loader(app_server, cwd_filter, include_non_interactive, bg_tx),
@@ -192,12 +202,12 @@ pub async fn run_resume_picker_with_app_server(
 pub async fn run_fork_picker_with_app_server(
     tui: &mut Tui,
     config: &Config,
-    show_all: bool,
+    show_all_paths: bool,
     app_server: AppServerSession,
 ) -> Result<SessionSelection> {
     let (bg_tx, bg_rx) = mpsc::unbounded_channel();
     let is_remote = app_server.is_remote();
-    let cwd_filter = if show_all {
+    let cwd_filter = if show_all_paths {
         None
     } else {
         app_server.remote_cwd_override().map(Path::to_path_buf)
@@ -205,7 +215,8 @@ pub async fn run_fork_picker_with_app_server(
     run_session_picker_with_loader(
         tui,
         config,
-        show_all,
+        show_all_paths,
+        /*show_all_providers*/ false,
         SessionPickerAction::Fork,
         is_remote,
         spawn_app_server_page_loader(
@@ -220,14 +231,16 @@ pub async fn run_fork_picker_with_app_server(
 async fn run_session_picker(
     tui: &mut Tui,
     config: &Config,
-    show_all: bool,
+    show_all_paths: bool,
+    show_all_providers: bool,
     action: SessionPickerAction,
 ) -> Result<SessionSelection> {
     let (bg_tx, bg_rx) = mpsc::unbounded_channel();
     run_session_picker_with_loader(
         tui,
         config,
-        show_all,
+        show_all_paths,
+        show_all_providers,
         action,
         /*is_remote*/ false,
         spawn_rollout_page_loader(config, bg_tx),
@@ -239,20 +252,26 @@ async fn run_session_picker(
 async fn run_session_picker_with_loader(
     tui: &mut Tui,
     config: &Config,
-    show_all: bool,
+    show_all_paths: bool,
+    show_all_providers: bool,
     action: SessionPickerAction,
     is_remote: bool,
     page_loader: PageLoader,
     bg_rx: mpsc::UnboundedReceiver<BackgroundEvent>,
 ) -> Result<SessionSelection> {
     let alt = AltScreenGuard::enter(tui);
-    let provider_filter = if is_remote {
+    let default_provider = (!is_remote).then(|| config.model_provider_id.to_string());
+    let provider_filter = if is_remote || show_all_providers {
         ProviderFilter::Any
     } else {
-        ProviderFilter::MatchDefault(config.model_provider_id.to_string())
+        ProviderFilter::MatchDefault(
+            default_provider
+                .clone()
+                .expect("local picker should have a default provider"),
+        )
     };
     let codex_home = config.codex_home.as_path();
-    let filter_cwd = if show_all || is_remote {
+    let filter_cwd = if show_all_paths || is_remote {
         // Remote sessions live in the server's filesystem namespace, so the client
         // process cwd is not a meaningful row filter. If the user provided an
         // explicit remote --cd, filtering is handled server-side in thread/list.
@@ -266,7 +285,9 @@ async fn run_session_picker_with_loader(
         alt.tui.frame_requester(),
         page_loader,
         provider_filter,
-        show_all,
+        show_all_paths,
+        is_remote || show_all_providers,
+        default_provider,
         filter_cwd,
         action,
     );
@@ -438,7 +459,9 @@ struct PickerState {
     page_loader: PageLoader,
     view_rows: Option<usize>,
     provider_filter: ProviderFilter,
-    show_all: bool,
+    show_all_paths: bool,
+    show_all_providers: bool,
+    default_provider: Option<String>,
     filter_cwd: Option<PathBuf>,
     action: SessionPickerAction,
     sort_key: ThreadSortKey,
@@ -576,7 +599,9 @@ impl PickerState {
         requester: FrameRequester,
         page_loader: PageLoader,
         provider_filter: ProviderFilter,
-        show_all: bool,
+        show_all_paths: bool,
+        show_all_providers: bool,
+        default_provider: Option<String>,
         filter_cwd: Option<PathBuf>,
         action: SessionPickerAction,
     ) -> Self {
@@ -602,7 +627,9 @@ impl PickerState {
             page_loader,
             view_rows: None,
             provider_filter,
-            show_all,
+            show_all_paths,
+            show_all_providers,
+            default_provider,
             filter_cwd,
             action,
             sort_key: ThreadSortKey::UpdatedAt,
@@ -691,6 +718,14 @@ impl PickerState {
             }
             KeyCode::Tab => {
                 self.toggle_sort_key();
+                self.request_frame();
+            }
+            KeyCode::Char('p')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                self.toggle_provider_filter();
                 self.request_frame();
             }
             KeyCode::Backspace => {
@@ -874,7 +909,7 @@ impl PickerState {
     }
 
     fn row_matches_filter(&self, row: &Row) -> bool {
-        if self.show_all {
+        if self.show_all_paths {
             return true;
         }
         let Some(filter_cwd) = self.filter_cwd.as_ref() else {
@@ -1048,6 +1083,24 @@ impl PickerState {
         };
         self.start_initial_load();
     }
+
+    fn can_toggle_provider_filter(&self) -> bool {
+        self.default_provider.is_some()
+    }
+
+    fn toggle_provider_filter(&mut self) {
+        let Some(default_provider) = self.default_provider.clone() else {
+            return;
+        };
+
+        self.show_all_providers = !self.show_all_providers;
+        self.provider_filter = if self.show_all_providers {
+            ProviderFilter::Any
+        } else {
+            ProviderFilter::MatchDefault(default_provider)
+        };
+        self.start_initial_load();
+    }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -1188,7 +1241,7 @@ fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
 
         let metrics = calculate_column_metrics(
             &state.filtered_rows,
-            state.show_all,
+            state.show_all_paths,
             state.relative_time_reference.unwrap_or_else(Utc::now),
         );
 
@@ -1198,7 +1251,7 @@ fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
 
         // Hint line
         let action_label = state.action.action_label();
-        let hint_line: Line = vec![
+        let mut hint_segments = vec![
             key_hint::plain(KeyCode::Enter).into(),
             format!(" to {action_label} ").dim(),
             "    ".dim(),
@@ -1210,13 +1263,20 @@ fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
             "    ".dim(),
             key_hint::plain(KeyCode::Tab).into(),
             " to toggle sort ".dim(),
+        ];
+        if state.can_toggle_provider_filter() {
+            hint_segments.push("    ".dim());
+            hint_segments.push(key_hint::ctrl(KeyCode::Char('p')).into());
+            hint_segments.push(" to toggle providers ".dim());
+        }
+        hint_segments.extend([
             "    ".dim(),
             key_hint::plain(KeyCode::Up).into(),
             "/".dim(),
             key_hint::plain(KeyCode::Down).into(),
             " to browse".dim(),
-        ]
-        .into();
+        ]);
+        let hint_line: Line = hint_segments.into();
         frame.render_widget_ref(hint_line, hint);
     })
 }
@@ -1900,7 +1960,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::Any,
-            /*show_all*/ false,
+            /*show_all_paths*/ false,
+            /*show_all_providers*/ true,
+            /*default_provider*/ None,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -1919,6 +1981,47 @@ mod tests {
     }
 
     #[test]
+    fn local_picker_filters_rows_by_cwd_unless_show_all_paths_is_enabled() {
+        let loader: PageLoader = Arc::new(|_| {});
+        let row = Row {
+            path: Some(PathBuf::from("/tmp/session.jsonl")),
+            preview: String::from("local session"),
+            thread_id: Some(ThreadId::new()),
+            thread_name: None,
+            created_at: None,
+            updated_at: None,
+            cwd: Some(PathBuf::from("/tmp/project-a")),
+            git_branch: None,
+        };
+
+        let filtered_state = PickerState::new(
+            PathBuf::from("/tmp"),
+            FrameRequester::test_dummy(),
+            loader.clone(),
+            ProviderFilter::MatchDefault(String::from("openai")),
+            /*show_all_paths*/ false,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
+            /*filter_cwd*/ Some(PathBuf::from("/tmp/project-b")),
+            SessionPickerAction::Resume,
+        );
+        assert!(!filtered_state.row_matches_filter(&row));
+
+        let unfiltered_state = PickerState::new(
+            PathBuf::from("/tmp"),
+            FrameRequester::test_dummy(),
+            loader,
+            ProviderFilter::MatchDefault(String::from("openai")),
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
+            /*filter_cwd*/ Some(PathBuf::from("/tmp/project-b")),
+            SessionPickerAction::Resume,
+        );
+        assert!(unfiltered_state.row_matches_filter(&row));
+    }
+
+    #[test]
     fn resume_table_snapshot() {
         use crate::custom_terminal::Terminal;
         use crate::test_backend::VT100Backend;
@@ -1931,7 +2034,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -1977,7 +2082,7 @@ mod tests {
         state.update_view_rows(/*rows*/ 3);
 
         state.relative_time_reference = Some(now);
-        let metrics = calculate_column_metrics(&state.filtered_rows, state.show_all, now);
+        let metrics = calculate_column_metrics(&state.filtered_rows, state.show_all_paths, now);
 
         let width: u16 = 80;
         let height: u16 = 6;
@@ -2010,7 +2115,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2246,7 +2353,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2284,7 +2393,7 @@ mod tests {
         state.update_thread_names().await;
 
         state.relative_time_reference = Some(now);
-        let metrics = calculate_column_metrics(&state.filtered_rows, state.show_all, now);
+        let metrics = calculate_column_metrics(&state.filtered_rows, state.show_all_paths, now);
 
         let width: u16 = 80;
         let height: u16 = 5;
@@ -2328,7 +2437,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2365,7 +2476,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2434,7 +2547,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2515,7 +2630,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2538,6 +2655,46 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn toggle_provider_filter_reloads_with_any_filter() {
+        let recorded_requests: Arc<Mutex<Vec<PageLoadRequest>>> = Arc::new(Mutex::new(Vec::new()));
+        let request_sink = recorded_requests.clone();
+        let loader: PageLoader = Arc::new(move |req: PageLoadRequest| {
+            request_sink.lock().unwrap().push(req);
+        });
+
+        let mut state = PickerState::new(
+            PathBuf::from("/tmp"),
+            FrameRequester::test_dummy(),
+            loader,
+            ProviderFilter::MatchDefault(String::from("openai")),
+            /*show_all_paths*/ false,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
+            /*filter_cwd*/ Some(PathBuf::from("/tmp/project")),
+            SessionPickerAction::Resume,
+        );
+
+        state.start_initial_load();
+        {
+            let guard = recorded_requests.lock().unwrap();
+            assert_eq!(guard.len(), 1);
+            assert!(matches!(
+                guard[0].provider_filter,
+                ProviderFilter::MatchDefault(_)
+            ));
+        }
+
+        state
+            .handle_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL))
+            .await
+            .unwrap();
+
+        let guard = recorded_requests.lock().unwrap();
+        assert_eq!(guard.len(), 2);
+        assert!(matches!(guard[1].provider_filter, ProviderFilter::Any));
+    }
+
+    #[tokio::test]
     async fn page_navigation_uses_view_rows() {
         let loader: PageLoader = Arc::new(|_| {});
         let mut state = PickerState::new(
@@ -2545,7 +2702,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2593,7 +2752,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2633,7 +2794,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2703,7 +2866,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
@@ -2751,7 +2916,9 @@ mod tests {
             FrameRequester::test_dummy(),
             loader,
             ProviderFilter::MatchDefault(String::from("openai")),
-            /*show_all*/ true,
+            /*show_all_paths*/ true,
+            /*show_all_providers*/ false,
+            Some(String::from("openai")),
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );

@@ -32,6 +32,10 @@ pub struct Cli {
     #[clap(skip)]
     pub resume_show_all: bool,
 
+    /// Internal: show sessions from all providers.
+    #[clap(skip)]
+    pub resume_show_all_providers: bool,
+
     /// Internal: include non-interactive sessions in resume listings.
     #[clap(skip)]
     pub resume_include_non_interactive: bool,

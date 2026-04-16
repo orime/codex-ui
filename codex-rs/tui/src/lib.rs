@@ -586,6 +586,7 @@ async fn lookup_latest_session_target_with_app_server(
     app_server: &mut AppServerSession,
     config: &Config,
     cwd_filter: Option<&Path>,
+    show_all_providers: bool,
     include_non_interactive: bool,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     let response = app_server
@@ -593,6 +594,7 @@ async fn lookup_latest_session_target_with_app_server(
             app_server.is_remote(),
             config,
             cwd_filter,
+            show_all_providers,
             include_non_interactive,
         ))
         .await?;
@@ -606,13 +608,14 @@ fn latest_session_lookup_params(
     is_remote: bool,
     config: &Config,
     cwd_filter: Option<&Path>,
+    show_all_providers: bool,
     include_non_interactive: bool,
 ) -> ThreadListParams {
     ThreadListParams {
         cursor: None,
         limit: Some(1),
         sort_key: Some(AppServerThreadSortKey::UpdatedAt),
-        model_providers: if is_remote {
+        model_providers: if is_remote || show_all_providers {
             None
         } else {
             Some(vec![config.model_provider_id.clone()])
@@ -1226,7 +1229,8 @@ async fn run_ratatui_app(
                 unreachable!("app server should be initialized for --fork --last");
             };
             match lookup_latest_session_target_with_app_server(
-                app_server, &config, filter_cwd, /*include_non_interactive*/ false,
+                app_server, &config, filter_cwd, /*show_all_providers*/ false,
+                /*include_non_interactive*/ false,
             )
             .await?
             {
@@ -1292,6 +1296,7 @@ async fn run_ratatui_app(
             app_server,
             &config,
             filter_cwd,
+            cli.resume_show_all_providers,
             cli.resume_include_non_interactive,
         )
         .await?
@@ -1307,6 +1312,7 @@ async fn run_ratatui_app(
             &mut tui,
             &config,
             cli.resume_show_all,
+            cli.resume_show_all_providers,
             cli.resume_include_non_interactive,
             app_server,
         )
@@ -1893,6 +1899,7 @@ mod tests {
             /*is_remote*/ false,
             &config,
             Some(cwd.as_path()),
+            /*show_all_providers*/ false,
             /*include_non_interactive*/ false,
         );
 
@@ -1908,7 +1915,10 @@ mod tests {
         let config = build_config(&temp_dir).await?;
 
         let params = latest_session_lookup_params(
-            /*is_remote*/ true, &config, /*cwd_filter*/ None,
+            /*is_remote*/ true,
+            &config,
+            /*cwd_filter*/ None,
+            /*show_all_providers*/ false,
             /*include_non_interactive*/ false,
         );
 
@@ -1928,11 +1938,32 @@ mod tests {
             /*is_remote*/ true,
             &config,
             Some(cwd),
+            /*show_all_providers*/ false,
             /*include_non_interactive*/ false,
         );
 
         assert_eq!(params.model_providers, None);
         assert_eq!(params.cwd.as_deref(), Some("repo/on/server"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn latest_session_lookup_params_can_omit_provider_filter_for_local_sessions()
+    -> std::io::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let config = build_config(&temp_dir).await?;
+        let cwd = temp_dir.path().join("project");
+
+        let params = latest_session_lookup_params(
+            /*is_remote*/ false,
+            &config,
+            Some(cwd.as_path()),
+            /*show_all_providers*/ true,
+            /*include_non_interactive*/ false,
+        );
+
+        assert_eq!(params.model_providers, None);
+        assert_eq!(params.cwd, Some(cwd.to_string_lossy().to_string()));
         Ok(())
     }
 

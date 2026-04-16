@@ -4346,7 +4346,8 @@ impl App {
                 match crate::resume_picker::run_resume_picker_with_app_server(
                     tui,
                     &self.config,
-                    /*show_all*/ false,
+                    /*show_all_paths*/ false,
+                    /*show_all_providers*/ false,
                     /*include_non_interactive*/ false,
                     picker_app_server,
                 )
