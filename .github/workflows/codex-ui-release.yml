@@ -84,7 +84,7 @@ jobs:
           grep -F 'tui.theme="opencode-matrix"' "$tmp_dir/codex-ui"
 
       - name: Upload packaged asset
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-ui-${{ matrix.target }}
           path: |
