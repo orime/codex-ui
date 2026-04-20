@@ -20,6 +20,15 @@ impl ChatWidget {
         self.bottom_pane.show_selection_view(params);
     }
 
+    pub(super) fn open_theme_ui_picker(&mut self) {
+        let terminal_width = self
+            .last_rendered_width
+            .get()
+            .and_then(|width| u16::try_from(width).ok());
+        let params = crate::theme_picker::build_ui_theme_picker_params(terminal_width);
+        self.bottom_pane.show_selection_view(params);
+    }
+
     pub(crate) fn open_personality_popup(&mut self) {
         if !self.is_session_configured() {
             self.add_info_message(

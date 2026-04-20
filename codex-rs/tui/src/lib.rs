@@ -178,6 +178,7 @@ mod terminal_title;
 mod terminal_visualization_instructions;
 mod text_formatting;
 mod theme_picker;
+mod ui_theme;
 mod thread_transcript;
 mod token_usage;
 mod tooltips;
@@ -1685,6 +1686,9 @@ async fn run_ratatui_app(
         config.tui_theme.clone(),
         find_codex_home().ok().map(AbsolutePathBuf::into_path_buf),
     ) {
+        config.startup_warnings.push(w);
+    }
+    if let Some(w) = crate::ui_theme::set_theme_override(config.tui_theme.clone()) {
         config.startup_warnings.push(w);
     }
 
