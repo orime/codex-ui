@@ -49,6 +49,7 @@ pub enum SlashCommand {
     Title,
     Statusline,
     Theme,
+    ThemeUi,
     Mcp,
     Apps,
     Plugins,
@@ -99,6 +100,7 @@ impl SlashCommand {
             SlashCommand::Title => "configure which items appear in the terminal title",
             SlashCommand::Statusline => "configure which items appear in the status line",
             SlashCommand::Theme => "choose a syntax highlighting theme",
+            SlashCommand::ThemeUi => "choose a UI palette theme",
             SlashCommand::Ps => "list background terminals",
             SlashCommand::Stop => "stop all background terminals",
             SlashCommand::MemoryDrop => "DO NOT USE",
@@ -229,6 +231,7 @@ impl SlashCommand {
             SlashCommand::Collab => true,
             SlashCommand::Agent | SlashCommand::MultiAgents => true,
             SlashCommand::Theme => false,
+            SlashCommand::ThemeUi => false,
         }
     }
 

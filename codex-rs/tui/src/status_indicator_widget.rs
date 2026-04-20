@@ -26,6 +26,12 @@ use crate::motion::ReducedMotionIndicator;
 use crate::motion::activity_indicator;
 use crate::motion::shimmer_text;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_background;
+use crate::style::opencode_background_secondary;
+use crate::style::opencode_info;
+use crate::style::opencode_primary;
+use crate::style::opencode_secondary;
+use crate::style::opencode_text_muted;
 use crate::text_formatting::capitalize_first;
 use crate::tui::FrameRequester;
 use crate::wrapping::RtOptions;
@@ -202,11 +208,25 @@ impl StatusIndicatorWidget {
 
         let prefix_width = UnicodeWidthStr::width(DETAILS_PREFIX);
         let opts = RtOptions::new(usize::from(width))
-            .initial_indent(Line::from(DETAILS_PREFIX.dim()))
-            .subsequent_indent(Line::from(Span::from(" ".repeat(prefix_width)).dim()))
-            .break_words(/*break_words*/ true);
+            .initial_indent(Line::from(Span::styled(
+                DETAILS_PREFIX,
+                ratatui::style::Style::default().fg(opencode_info()).bold(),
+            )))
+            .subsequent_indent(Line::from(Span::styled(
+                " ".repeat(prefix_width),
+                ratatui::style::Style::default().fg(opencode_info()),
+            )))
+            .break_words(true);
 
-        let mut out = word_wrap_lines(details.lines().map(|line| vec![line.dim()]), opts);
+        let mut out = word_wrap_lines(
+            details.lines().map(|line| {
+                vec![Span::styled(
+                    line.to_string(),
+                    ratatui::style::Style::default().fg(opencode_text_muted()),
+                )]
+            }),
+            opts,
+        );
 
         if out.len() > self.details_max_lines {
             out.truncate(self.details_max_lines);
@@ -245,32 +265,61 @@ impl Renderable for StatusIndicatorWidget {
         let motion_mode = MotionMode::from_animations_enabled(self.animations_enabled);
 
         let mut spans = Vec::with_capacity(5);
-        if let Some(indicator) = activity_indicator(
+        let header_style = ratatui::style::Style::default()
+            .fg(opencode_background())
+            .bg(opencode_primary())
+            .bold();
+        if let Some(mut indicator) = activity_indicator(
             Some(self.last_resume_at),
             motion_mode,
             ReducedMotionIndicator::Hidden,
         ) {
+            indicator.style = indicator.style.patch(header_style);
             spans.push(indicator);
-            spans.push(" ".into());
+            spans.push(Span::styled(
+                " ".to_string(),
+                ratatui::style::Style::default().bg(opencode_primary()),
+            ));
         }
-        spans.extend(shimmer_text(&self.header, motion_mode));
-        if !spans.is_empty() {
-            spans.push(" ".into());
+        if self.animations_enabled {
+            spans.extend(shimmer_text(&self.header, motion_mode).into_iter().map(|mut span| {
+                span.style = span.style.patch(header_style);
+                span
+            }));
+            spans.push(Span::styled(
+                " ".to_string(),
+                ratatui::style::Style::default().bg(opencode_primary()),
+            ));
+        } else if !self.header.is_empty() {
+            spans.push(Span::styled(format!(" {} ", self.header), header_style));
         }
         if self.show_interrupt_hint {
             spans.extend(vec![
-                format!("({pretty_elapsed} • ").dim(),
+                Span::styled(
+                    format!(" {} ", pretty_elapsed),
+                    ratatui::style::Style::default()
+                        .fg(opencode_secondary())
+                        .bg(opencode_background_secondary())
+                        .bold(),
+                ),
+                " ".into(),
                 key_hint::plain(KeyCode::Esc).into(),
-                " to interrupt)".dim(),
+                " interrupt".fg(opencode_secondary()),
             ]);
         } else {
-            spans.push(format!("({pretty_elapsed})").dim());
+            spans.push(Span::styled(
+                format!(" {} ", pretty_elapsed),
+                ratatui::style::Style::default()
+                    .fg(opencode_secondary())
+                    .bg(opencode_background_secondary())
+                    .bold(),
+            ));
         }
         if let Some(message) = &self.inline_message {
             // Keep optional context after elapsed/interrupt text so that core
             // interrupt affordances stay in a fixed visual location.
-            spans.push(" · ".dim());
-            spans.push(message.clone().dim());
+            spans.push(" · ".fg(opencode_text_muted()));
+            spans.push(message.clone().fg(opencode_text_muted()));
         }
 
         let mut lines = Vec::new();
