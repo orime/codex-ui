@@ -7788,6 +7788,15 @@ impl ChatWidget {
         self.bottom_pane.show_selection_view(params);
     }
 
+    fn open_theme_ui_picker(&mut self) {
+        let terminal_width = self
+            .last_rendered_width
+            .get()
+            .and_then(|width| u16::try_from(width).ok());
+        let params = crate::theme_picker::build_ui_theme_picker_params(terminal_width);
+        self.bottom_pane.show_selection_view(params);
+    }
+
     fn status_line_context_window_size(&self) -> Option<i64> {
         self.token_info
             .as_ref()
