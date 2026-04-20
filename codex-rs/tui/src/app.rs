@@ -6031,10 +6031,13 @@ impl App {
 
     fn sync_tui_theme_selection(&mut self, name: String) {
         self.config.tui_theme = Some(name.clone());
-        self.chat_widget.set_tui_theme(Some(name));
+        self.chat_widget.set_tui_theme(Some(name.clone()));
+        let _ = crate::ui_theme::set_theme_override(Some(name));
     }
 
     fn restore_runtime_theme_from_config(&self) {
+        let _ = crate::ui_theme::set_theme_override(self.config.tui_theme.clone());
+
         if let Some(name) = self.config.tui_theme.as_deref()
             && let Some(theme) =
                 crate::render::highlight::resolve_theme_by_name(name, Some(&self.config.codex_home))

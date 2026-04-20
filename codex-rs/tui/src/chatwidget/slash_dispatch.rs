@@ -299,6 +299,9 @@ impl ChatWidget {
             SlashCommand::Theme => {
                 self.open_theme_picker();
             }
+            SlashCommand::ThemeUi => {
+                self.open_theme_ui_picker();
+            }
             SlashCommand::Ps => {
                 self.add_ps_output();
             }

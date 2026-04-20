@@ -160,6 +160,7 @@ mod theme_picker;
 mod tooltips;
 mod tui;
 mod ui_consts;
+mod ui_theme;
 pub(crate) mod update_action;
 pub use update_action::UpdateAction;
 mod update_prompt;
@@ -1402,6 +1403,9 @@ async fn run_ratatui_app(
     ) {
         config.startup_warnings.push(w);
     }
+    if let Some(w) = crate::ui_theme::set_theme_override(config.tui_theme.clone()) {
+        config.startup_warnings.push(w);
+    }
 
     set_default_client_residency_requirement(config.enforce_residency.value());
     let active_profile = config.active_profile.clone();
@@ -1915,11 +1919,8 @@ mod tests {
         let config = build_config(&temp_dir).await?;
 
         let params = latest_session_lookup_params(
-            /*is_remote*/ true,
-            &config,
-            /*cwd_filter*/ None,
-            /*show_all_providers*/ false,
-            /*include_non_interactive*/ false,
+            /*is_remote*/ true, &config, /*cwd_filter*/ None,
+            /*show_all_providers*/ false, /*include_non_interactive*/ false,
         );
 
         assert_eq!(params.model_providers, None);
