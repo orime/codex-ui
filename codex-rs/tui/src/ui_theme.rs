@@ -1005,7 +1005,7 @@ fn ensure_contrast(candidate: Rgb, background: Rgb, fallback: Rgb, min_ratio: f3
 fn softened_diff_background(base: Rgb, tint: Rgb, preferred_foreground: Rgb, dark: bool) -> Rgb {
     let mut alpha = if dark { 0.18 } else { 0.12 };
     let min_foreground_ratio = 3.8;
-    let min_surface_delta = 1.06;
+    let min_surface_delta = 1.05;
 
     loop {
         let candidate = overlay(base, tint, alpha);
@@ -1027,7 +1027,7 @@ fn ensure_min_surface_delta(
     preferred_foreground: Rgb,
     dark: bool,
 ) -> Rgb {
-    let min_surface_delta = 1.06;
+    let min_surface_delta = 1.05;
     if contrast_ratio(candidate, base) >= min_surface_delta
         && contrast_ratio(preferred_foreground, candidate) >= 3.8
     {

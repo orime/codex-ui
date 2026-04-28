@@ -135,6 +135,15 @@ Base the staging suggestion on the actual diff, dependencies, and affected call 
 
 See `codex-rs/tui/styles.md`.
 
+### codex-ui fork override
+
+When maintaining the `codex-ui` fork, high-visibility TUI surfaces should prefer semantic `opencode_*`
+helpers from `codex-rs/tui/src/style.rs` over scattered raw color helpers.
+
+Do not treat "theme file compiles" as sufficient. Visible consumer screens such as onboarding,
+approval flows, update prompts, selection lists, history cells, plugin views, and footer/status
+panels must be reviewed as part of the port.
+
 ## TUI code conventions
 
 - Use concise styling helpers from ratatui’s Stylize trait.

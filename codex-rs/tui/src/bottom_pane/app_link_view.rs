@@ -33,9 +33,11 @@ use crate::key_hint::KeyBindingListExt;
 use crate::keymap::ListKeymap;
 use crate::render::Insets;
 use crate::render::RectExt as _;
+use crate::style::opencode_link_style;
 use crate::style::user_message_style;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
+use ratatui::style::Styled as _;
 
 const MCP_CODEX_APPS_SERVER_NAME: &str = "codex_apps";
 const MCP_TOOL_CODEX_APPS_META_KEY: &str = "_codex_apps";
@@ -629,7 +631,7 @@ impl AppLinkView {
             }
             .dim(),
         ]));
-        let url_line = Line::from(vec![self.url.clone().cyan().underlined()]);
+        let url_line = Line::from(vec![self.url.clone().set_style(opencode_link_style())]);
         lines.extend(adaptive_wrap_lines(
             vec![url_line],
             RtOptions::new(usable_width),
