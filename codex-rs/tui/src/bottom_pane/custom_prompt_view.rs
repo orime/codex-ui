@@ -13,6 +13,8 @@ use ratatui::widgets::Widget;
 use std::cell::RefCell;
 
 use crate::render::renderable::Renderable;
+use crate::style::opencode_secondary;
+use crate::style::opencode_text_muted;
 
 use super::popup_consts::standard_popup_hint_line;
 
@@ -149,7 +151,8 @@ impl Renderable for CustomPromptView {
                 width: area.width,
                 height: 1,
             };
-            let spans: Vec<Span<'static>> = vec![gutter(), context_label.clone().cyan()];
+            let spans: Vec<Span<'static>> =
+                vec![gutter(), context_label.clone().fg(opencode_secondary())];
             Paragraph::new(Line::from(spans)).render(context_area, buf);
             input_y = input_y.saturating_add(1);
         }
@@ -194,8 +197,10 @@ impl Renderable for CustomPromptView {
                 let mut state = self.textarea_state.borrow_mut();
                 StatefulWidgetRef::render_ref(&(&self.textarea), textarea_rect, buf, &mut state);
                 if self.textarea.text().is_empty() {
-                    Paragraph::new(Line::from(self.placeholder.clone().dim()))
-                        .render(textarea_rect, buf);
+                    Paragraph::new(Line::from(
+                        self.placeholder.clone().fg(opencode_text_muted()),
+                    ))
+                    .render(textarea_rect, buf);
                 }
             }
         }
@@ -255,5 +260,5 @@ impl CustomPromptView {
 }
 
 fn gutter() -> Span<'static> {
-    "▌ ".cyan()
+    "▌ ".fg(opencode_secondary())
 }

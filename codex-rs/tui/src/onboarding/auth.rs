@@ -18,9 +18,9 @@ use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
-use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
+use ratatui::style::Styled as _;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Block;
@@ -40,9 +40,15 @@ use crate::LoginStatus;
 use crate::onboarding::onboarding_screen::KeyboardHandler;
 use crate::onboarding::onboarding_screen::StepStateProvider;
 use crate::shimmer::shimmer_spans;
+use crate::style::opencode_error_style;
+use crate::style::opencode_info;
+use crate::style::opencode_link_style;
+use crate::style::opencode_primary;
+use crate::style::opencode_secondary;
+use crate::style::opencode_secondary_style;
 use crate::tui::FrameRequester;
 
-/// Marks buffer cells that have cyan+underlined style as an OSC 8 hyperlink.
+/// Marks buffer cells that have the themed link style as an OSC 8 hyperlink.
 ///
 /// Terminal emulators recognise the OSC 8 escape sequence and treat the entire
 /// marked region as a single clickable link, regardless of row wrapping.  This
@@ -65,7 +71,7 @@ pub(crate) fn mark_url_hyperlink(buf: &mut Buffer, area: Rect, url: &str) {
         for x in area.left()..area.right() {
             let cell = &mut buf[(x, y)];
             // Only mark cells that carry the URL's distinctive style.
-            if cell.fg != Color::Cyan || !cell.modifier.contains(Modifier::UNDERLINED) {
+            if cell.fg != opencode_info() || !cell.modifier.contains(Modifier::UNDERLINED) {
                 continue;
             }
             let sym = cell.symbol().to_string();
@@ -391,8 +397,10 @@ impl AuthModeWidget {
 
             let line1 = if is_selected {
                 Line::from(vec![
-                    format!("{caret} {index}. ", index = idx + 1).cyan().dim(),
-                    text.to_string().cyan(),
+                    format!("{caret} {index}. ", index = idx + 1)
+                        .fg(opencode_secondary())
+                        .dim(),
+                    text.to_string().set_style(opencode_secondary_style()),
                 ])
             } else {
                 format!("  {index}. {text}", index = idx + 1).into()
@@ -400,7 +408,7 @@ impl AuthModeWidget {
 
             let line2 = if is_selected {
                 Line::from(format!("     {description}"))
-                    .fg(Color::Cyan)
+                    .fg(opencode_secondary())
                     .add_modifier(Modifier::DIM)
             } else {
                 Line::from(format!("     {description}"))
@@ -462,7 +470,7 @@ impl AuthModeWidget {
         );
         if let Some(err) = self.error_message() {
             lines.push("".into());
-            lines.push(err.red().into());
+            lines.push(err.set_style(opencode_error_style()).into());
         }
 
         Paragraph::new(lines)
@@ -490,12 +498,12 @@ impl AuthModeWidget {
             lines.push("".into());
             lines.push(Line::from(vec![
                 "  ".into(),
-                state.auth_url.as_str().cyan().underlined(),
+                state.auth_url.as_str().set_style(opencode_link_style()),
             ]));
             lines.push("".into());
             lines.push(Line::from(vec![
                 "  On a remote or headless machine? Press Esc and choose ".into(),
-                "Sign in with Device Code".cyan(),
+                "Sign in with Device Code".set_style(opencode_secondary_style()),
                 ".".into(),
             ]));
             lines.push("".into());
@@ -509,7 +517,7 @@ impl AuthModeWidget {
             .wrap(Wrap { trim: false })
             .render(area, buf);
 
-        // Wrap cyan+underlined URL cells with OSC 8 so the terminal treats
+        // Wrap themed link cells with OSC 8 so the terminal treats
         // the entire region as a single clickable hyperlink.
         if let Some(url) = &auth_url {
             mark_url_hyperlink(buf, area, url);
@@ -518,7 +526,9 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success_message(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "✓ Signed in with your ChatGPT account".fg(Color::Green).into(),
+            "✓ Signed in with your ChatGPT account"
+                .fg(opencode_primary())
+                .into(),
             "".into(),
             "  Before you start:".into(),
             "".into(),
@@ -539,7 +549,7 @@ impl AuthModeWidget {
             ])
             .dim(),
             "".into(),
-            "  Press Enter to continue".fg(Color::Cyan).into(),
+            "  Press Enter to continue".fg(opencode_secondary()).into(),
         ];
 
         Paragraph::new(lines)
@@ -550,7 +560,7 @@ impl AuthModeWidget {
     fn render_chatgpt_success(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
             "✓ Signed in with your ChatGPT account"
-                .fg(Color::Green)
+                .fg(opencode_primary())
                 .into(),
         ];
 
@@ -561,7 +571,7 @@ impl AuthModeWidget {
 
     fn render_api_key_configured(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "✓ API key configured".fg(Color::Green).into(),
+            "✓ API key configured".fg(opencode_primary()).into(),
             "".into(),
             "  Codex will use usage-based billing with your API key.".into(),
         ];
@@ -613,7 +623,7 @@ impl AuthModeWidget {
                     .title("API key")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .border_style(Style::default().fg(opencode_secondary())),
             )
             .render(input_area, buf);
 
@@ -623,7 +633,7 @@ impl AuthModeWidget {
         ];
         if let Some(error) = self.error_message() {
             footer_lines.push("".into());
-            footer_lines.push(error.red().into());
+            footer_lines.push(error.set_style(opencode_error_style()).into());
         }
         Paragraph::new(footer_lines)
             .wrap(Wrap { trim: false })
@@ -1194,16 +1204,16 @@ mod tests {
     }
 
     #[test]
-    fn mark_url_hyperlink_wraps_cyan_underlined_cells() {
+    fn mark_url_hyperlink_wraps_themed_link_cells() {
         let url = "https://example.com";
         let area = Rect::new(0, 0, 20, 1);
         let mut buf = Buffer::empty(area);
 
-        // Manually write some cyan+underlined characters to simulate a rendered URL.
+        // Manually write some themed underlined characters to simulate a rendered URL.
         for (i, ch) in "example".chars().enumerate() {
             let cell = &mut buf[(i as u16, 0)];
             cell.set_symbol(&ch.to_string());
-            cell.fg = Color::Cyan;
+            cell.fg = opencode_info();
             cell.modifier = Modifier::UNDERLINED;
         }
         // Leave a plain cell that should NOT be marked.
@@ -1211,7 +1221,7 @@ mod tests {
 
         mark_url_hyperlink(&mut buf, area, url);
 
-        // Each cyan+underlined cell should now carry the OSC 8 wrapper.
+        // Each themed underlined cell should now carry the OSC 8 wrapper.
         let found = collect_osc8_chars(&buf, area, url);
         assert_eq!(found, "example");
 
@@ -1224,10 +1234,10 @@ mod tests {
         let area = Rect::new(0, 0, 10, 1);
         let mut buf = Buffer::empty(area);
 
-        // One cyan+underlined cell to mark.
+        // One themed underlined cell to mark.
         let cell = &mut buf[(0, 0)];
         cell.set_symbol("a");
-        cell.fg = Color::Cyan;
+        cell.fg = opencode_info();
         cell.modifier = Modifier::UNDERLINED;
 
         // URL contains ESC and BEL that could break the OSC 8 sequence.

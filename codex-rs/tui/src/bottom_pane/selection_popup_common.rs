@@ -2,7 +2,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 // Note: Table-based layout previously used Constraint; the manual renderer
 // below no longer requires it.
-use ratatui::style::Color;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
@@ -17,6 +16,8 @@ use crate::key_hint::KeyBinding;
 use crate::line_truncation::truncate_line_with_ellipsis_if_overflow;
 use crate::render::Insets;
 use crate::render::RectExt as _;
+use crate::style::opencode_secondary;
+use crate::style::opencode_text_muted;
 use crate::style::user_message_style;
 
 use super::scroll_state::ScrollState;
@@ -172,7 +173,7 @@ fn compute_desc_col(
                         let mut spans = row.name_prefix_spans.clone();
                         spans.push(row.name.clone().into());
                         if row.disabled_reason.is_some() {
-                            spans.push(" (disabled)".dim());
+                            spans.push(" (disabled)".fg(opencode_text_muted()));
                         }
                         Line::from(spans).width()
                     })
@@ -184,7 +185,7 @@ fn compute_desc_col(
                         let mut spans = row.name_prefix_spans.clone();
                         spans.push(row.name.clone().into());
                         if row.disabled_reason.is_some() {
-                            spans.push(" (disabled)".dim());
+                            spans.push(" (disabled)".fg(opencode_text_muted()));
                         }
                         Line::from(spans).width()
                     })
@@ -279,7 +280,7 @@ fn wrap_two_column_row(row: &GenericDisplayRow, desc_col: usize, width: u16) -> 
             if gap > 0 {
                 spans.push(" ".repeat(gap).into());
             }
-            spans.push(desc.to_string().dim());
+            spans.push(desc.to_string().fg(opencode_text_muted()));
         }
 
         out.push(Line::from(spans));
@@ -318,7 +319,7 @@ fn apply_row_state_style(lines: &mut [Line<'static>], selected: bool, is_disable
     if selected {
         for line in lines.iter_mut() {
             line.spans.iter_mut().for_each(|span| {
-                span.style = Style::default().fg(Color::Cyan).bold();
+                span.style = Style::default().fg(opencode_secondary()).bold();
             });
         }
     }
@@ -486,7 +487,7 @@ fn build_full_line(row: &GenericDisplayRow, desc_col: usize) -> Line<'static> {
     }
 
     if row.disabled_reason.is_some() {
-        name_spans.push(" (disabled)".dim());
+        name_spans.push(" (disabled)".fg(opencode_text_muted()));
     }
 
     let this_name_width = name_prefix_width + Line::from(name_spans.clone()).width();
@@ -502,11 +503,11 @@ fn build_full_line(row: &GenericDisplayRow, desc_col: usize) -> Line<'static> {
         if gap > 0 {
             full_spans.push(" ".repeat(gap).into());
         }
-        full_spans.push(desc.clone().dim());
+        full_spans.push(desc.clone().fg(opencode_text_muted()));
     }
     if let Some(tag) = row.category_tag.as_deref().filter(|tag| !tag.is_empty()) {
         full_spans.push("  ".into());
-        full_spans.push(tag.to_string().dim());
+        full_spans.push(tag.to_string().fg(opencode_text_muted()));
     }
     Line::from(full_spans)
 }
@@ -725,7 +726,7 @@ pub(crate) fn render_rows_single_line_with_col_width_mode(
         let mut full_line = build_full_line(row, desc_col);
         if Some(i) == state.selected_idx && !row.is_disabled {
             full_line.spans.iter_mut().for_each(|span| {
-                span.style = Style::default().fg(Color::Cyan).bold();
+                span.style = Style::default().fg(opencode_secondary()).bold();
             });
         }
         if row.is_disabled {

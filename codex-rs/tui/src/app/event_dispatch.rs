@@ -76,6 +76,7 @@ impl App {
                     tui,
                     &self.config,
                     /*show_all*/ false,
+                    /*show_all_providers*/ false,
                     /*include_non_interactive*/ false,
                     picker_app_server,
                 )

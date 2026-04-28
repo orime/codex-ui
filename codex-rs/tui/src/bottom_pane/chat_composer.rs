@@ -187,6 +187,8 @@ use crate::render::Insets;
 use crate::render::RectExt;
 use crate::render::renderable::Renderable;
 use crate::slash_command::SlashCommand;
+use crate::style::opencode_secondary;
+use crate::style::opencode_text_muted;
 use crate::style::user_message_style;
 use codex_protocol::models::local_image_label_text;
 use codex_protocol::user_input::ByteRange;
@@ -2750,9 +2752,15 @@ impl ChatComposer {
             .map(|(idx, _)| {
                 let label = local_image_label_text(idx + 1);
                 if self.selected_remote_image_index == Some(idx) {
-                    label.cyan().reversed().into()
+                    Span::styled(
+                        label,
+                        Style::default()
+                            .fg(opencode_secondary())
+                            .add_modifier(Modifier::REVERSED),
+                    )
+                    .into()
                 } else {
-                    label.cyan().into()
+                    label.fg(opencode_secondary()).into()
                 }
             })
             .collect()
@@ -4147,12 +4155,12 @@ impl ChatComposer {
                         Span::from("!").light_red().bold()
                     }
                 } else if is_zellij {
-                    Span::styled("›", style.fg(ratatui::style::Color::Cyan))
+                    Span::styled("›", style.fg(opencode_secondary()))
                 } else {
                     "›".bold()
                 }
             } else if is_zellij {
-                Span::styled("›", style.fg(ratatui::style::Color::DarkGray))
+                Span::styled("›", style.fg(opencode_text_muted()))
             } else {
                 "›".dim()
             };
@@ -4238,7 +4246,7 @@ impl ChatComposer {
                         textarea_style.fg(ratatui::style::Color::White).italic(),
                     );
                 } else {
-                    let placeholder = Span::from(text).dim();
+                    let placeholder = Span::from(text).fg(opencode_text_muted());
                     let line = Line::from(vec![placeholder]);
                     line.render_ref(textarea_rect.inner(Margin::new(0, 0)), buf);
                 }

@@ -18,7 +18,9 @@ use crate::render::Insets;
 use crate::render::RectExt as _;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_link_style;
 use crate::style::user_message_style;
+use ratatui::style::Styled as _;
 
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;
@@ -96,7 +98,7 @@ impl MemoriesSettingsView {
             app_event_tx,
             docs_link: Line::from(vec![
                 "Learn more: ".dim(),
-                MEMORIES_DOC_URL.cyan().underlined(),
+                MEMORIES_DOC_URL.set_style(opencode_link_style()),
             ]),
         };
         view.initialize_selection();

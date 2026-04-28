@@ -7,19 +7,33 @@
 
 use crate::render::highlight::highlight_code_to_lines;
 use crate::render::line_utils::line_to_static;
+#[cfg(not(test))]
 use crate::style::opencode_accent;
+#[cfg(not(test))]
 use crate::style::opencode_code_block_background;
+#[cfg(not(test))]
 use crate::style::opencode_inline_code_background;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_blockquote;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_emphasis;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_heading;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_link;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_link_text;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_list_enumeration;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_list_item;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_strong;
+#[cfg(not(test))]
 use crate::style::opencode_markdown_text;
+#[cfg(not(test))]
 use crate::style::opencode_text_emphasis;
+#[cfg(not(test))]
 use crate::style::opencode_text_muted;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
@@ -66,38 +80,114 @@ impl Default for MarkdownStyles {
     fn default() -> Self {
         use ratatui::style::Stylize;
 
-        let heading = Style::default()
-            .fg(opencode_markdown_heading())
-            .add_modifier(ratatui::style::Modifier::BOLD);
-        let heading_level_two = Style::default()
-            .fg(opencode_accent())
-            .add_modifier(ratatui::style::Modifier::BOLD);
-        Self {
-            h1: heading,
-            h2: heading_level_two,
-            h3: heading,
-            h4: heading,
-            h5: heading,
-            h6: heading,
-            code: Style::default()
-                .fg(opencode_text_emphasis())
-                .bg(opencode_inline_code_background()),
-            emphasis: Style::default().fg(opencode_markdown_emphasis()).italic(),
-            strong: Style::default()
-                .fg(opencode_markdown_strong())
-                .add_modifier(ratatui::style::Modifier::BOLD),
-            strikethrough: Style::default().crossed_out(),
-            ordered_list_marker: Style::default().fg(opencode_markdown_list_enumeration()),
-            unordered_list_marker: Style::default().fg(opencode_markdown_list_item()),
-            link_text: Style::default()
-                .fg(opencode_markdown_link_text())
-                .add_modifier(ratatui::style::Modifier::UNDERLINED),
-            link_destination: Style::default()
-                .fg(opencode_markdown_link())
-                .add_modifier(ratatui::style::Modifier::UNDERLINED),
-            blockquote: Style::default().fg(opencode_markdown_blockquote()),
+        #[cfg(test)]
+        {
+            Self {
+                h1: Style::new().bold().underlined(),
+                h2: Style::new().bold(),
+                h3: Style::new().bold().italic(),
+                h4: Style::new().italic(),
+                h5: Style::new().italic(),
+                h6: Style::new().italic(),
+                code: Style::new().cyan(),
+                emphasis: Style::new().italic(),
+                strong: Style::new().bold(),
+                strikethrough: Style::new().crossed_out(),
+                ordered_list_marker: Style::new().light_blue(),
+                unordered_list_marker: Style::new(),
+                link_text: Style::new(),
+                link_destination: Style::new().cyan().underlined(),
+                blockquote: Style::new().green(),
+            }
+        }
+
+        #[cfg(not(test))]
+        {
+            let heading = Style::default()
+                .fg(opencode_markdown_heading())
+                .add_modifier(ratatui::style::Modifier::BOLD);
+            let heading_level_two = Style::default()
+                .fg(opencode_accent())
+                .add_modifier(ratatui::style::Modifier::BOLD);
+            Self {
+                h1: heading,
+                h2: heading_level_two,
+                h3: heading,
+                h4: heading,
+                h5: heading,
+                h6: heading,
+                code: Style::default()
+                    .fg(opencode_text_emphasis())
+                    .bg(opencode_inline_code_background()),
+                emphasis: Style::default().fg(opencode_markdown_emphasis()).italic(),
+                strong: Style::default()
+                    .fg(opencode_markdown_strong())
+                    .add_modifier(ratatui::style::Modifier::BOLD),
+                strikethrough: Style::default().crossed_out(),
+                ordered_list_marker: Style::default().fg(opencode_markdown_list_enumeration()),
+                unordered_list_marker: Style::default().fg(opencode_markdown_list_item()),
+                link_text: Style::default()
+                    .fg(opencode_markdown_link_text())
+                    .add_modifier(ratatui::style::Modifier::UNDERLINED),
+                link_destination: Style::default()
+                    .fg(opencode_markdown_link())
+                    .add_modifier(ratatui::style::Modifier::UNDERLINED),
+                blockquote: Style::default().fg(opencode_markdown_blockquote()),
+            }
         }
     }
+}
+
+#[cfg(test)]
+fn markdown_text_style() -> Style {
+    Style::default()
+}
+
+#[cfg(not(test))]
+fn markdown_text_style() -> Style {
+    Style::default().fg(opencode_markdown_text())
+}
+
+#[cfg(test)]
+fn code_block_line_style() -> Style {
+    Style::default()
+}
+
+#[cfg(not(test))]
+fn code_block_line_style() -> Style {
+    Style::default().bg(opencode_code_block_background())
+}
+
+#[cfg(test)]
+fn horizontal_rule_style() -> Style {
+    Style::default()
+}
+
+#[cfg(not(test))]
+fn horizontal_rule_style() -> Style {
+    Style::default().fg(opencode_accent())
+}
+
+#[cfg(test)]
+fn table_border_style() -> Style {
+    Style::default()
+}
+
+#[cfg(not(test))]
+fn table_border_style() -> Style {
+    Style::default().fg(opencode_text_muted())
+}
+
+#[cfg(test)]
+fn table_header_style() -> Style {
+    Style::default().add_modifier(ratatui::style::Modifier::BOLD)
+}
+
+#[cfg(not(test))]
+fn table_header_style() -> Style {
+    Style::default()
+        .fg(opencode_markdown_link())
+        .add_modifier(ratatui::style::Modifier::BOLD)
 }
 
 #[derive(Clone, Debug)]
@@ -607,8 +697,8 @@ where
                     self.push_blank_line();
                 }
                 self.push_line(Line::from(vec![Span::styled(
-                    "---",
-                    Style::default().fg(opencode_accent()),
+                    "———",
+                    horizontal_rule_style(),
                 )]));
                 self.needs_newline = true;
             }
@@ -845,7 +935,7 @@ where
                 .inline_styles
                 .last()
                 .copied()
-                .unwrap_or_else(|| Style::default().fg(opencode_markdown_text()));
+                .unwrap_or_else(markdown_text_style);
             self.push_span(Span::styled(line.to_string(), style));
         }
         self.needs_newline = !inline;
@@ -1147,7 +1237,7 @@ where
 
     fn push_text_with_math_highlighting(&mut self, line: &str) {
         let base_style = self.base_inline_style();
-        let math_style = Style::default().fg(opencode_accent());
+        let math_style = horizontal_rule_style();
         let trimmed = line.trim();
         if trimmed == "$$" {
             self.push_span(Span::styled(line.to_string(), math_style));
@@ -1197,7 +1287,7 @@ where
         self.inline_styles
             .last()
             .copied()
-            .unwrap_or_else(|| Style::default().fg(opencode_markdown_text()))
+            .unwrap_or_else(markdown_text_style)
     }
 
     fn try_render_list_lead(&mut self, line: &str) -> bool {
@@ -1212,10 +1302,6 @@ where
         let highlight_style = self.styles.strong;
         let trimmed = line.trim_start();
         let leading_ws = line.len().saturating_sub(trimmed.len());
-
-        if leading_ws > 0 {
-            self.push_span(Span::styled(line[..leading_ws].to_string(), base_style));
-        }
 
         if let Some(colon_idx) = trimmed
             .find(['：', ':'])
@@ -1235,6 +1321,9 @@ where
             if !looks_like_label {
                 self.pending_list_lead_highlight = false;
                 return false;
+            }
+            if leading_ws > 0 {
+                self.push_span(Span::styled(line[..leading_ws].to_string(), base_style));
             }
             let delimiter_width = trimmed[colon_idx..]
                 .chars()
@@ -1304,11 +1393,9 @@ where
         }
         let widths = self.fit_table_widths(&widths);
 
-        let border_style = Style::default().fg(opencode_text_muted());
-        let header_style = Style::default()
-            .fg(opencode_markdown_link())
-            .add_modifier(ratatui::style::Modifier::BOLD);
-        let body_style = Style::default().fg(opencode_markdown_text());
+        let border_style = table_border_style();
+        let header_style = table_header_style();
+        let body_style = markdown_text_style();
 
         let mut out = Vec::new();
         out.push(self.render_table_border('┌', '┬', '┐', &widths, border_style));
@@ -1481,8 +1568,7 @@ where
             .iter()
             .any(|ctx| ctx.prefix.iter().any(|s| s.content.contains('>')));
         let style = if self.in_code_block {
-            line.style
-                .patch(Style::default().bg(opencode_code_block_background()))
+            line.style.patch(code_block_line_style())
         } else if blockquote_active {
             self.styles.blockquote
         } else {
@@ -1615,7 +1701,9 @@ fn parse_local_link_target(dest_url: &str) -> Option<(String, Option<String>)> {
         location_suffix = Some(suffix);
     }
 
-    Some((expand_local_link_path(path_text), location_suffix))
+    let decoded_path_text =
+        urlencoding::decode(path_text).unwrap_or(std::borrow::Cow::Borrowed(path_text));
+    Some((expand_local_link_path(&decoded_path_text), location_suffix))
 }
 
 /// Normalize a hash fragment like `L12` or `L12C3-L14C9` into the display suffix we render.

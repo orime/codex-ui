@@ -14,6 +14,8 @@ use super::HistoryCell;
 use crate::exec_cell::spinner;
 use crate::render::renderable::Renderable;
 use crate::shimmer::shimmer_spans;
+use crate::style::opencode_error;
+use crate::style::opencode_primary;
 use codex_protocol::protocol::HookEventName;
 use codex_protocol::protocol::HookOutputEntry;
 use codex_protocol::protocol::HookOutputEntryKind;
@@ -680,10 +682,12 @@ fn hook_completed_bullet(status: HookRunStatus, entries: &[HookOutputEntry]) -> 
             {
                 "•".bold()
             } else {
-                "•".green().bold()
+                "•".fg(opencode_primary()).bold()
             }
         }
-        HookRunStatus::Blocked | HookRunStatus::Failed | HookRunStatus::Stopped => "•".red().bold(),
+        HookRunStatus::Blocked | HookRunStatus::Failed | HookRunStatus::Stopped => {
+            "•".fg(opencode_error()).bold()
+        }
         HookRunStatus::Running => "•".into(),
     }
 }

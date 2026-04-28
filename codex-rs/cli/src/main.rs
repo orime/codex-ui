@@ -289,6 +289,10 @@ struct ResumeCommand {
     #[arg(long = "all", default_value_t = false)]
     all: bool,
 
+    /// Show sessions from all model providers.
+    #[arg(long = "provider", default_value_t = false)]
+    provider: bool,
+
     /// Include non-interactive sessions in the resume picker and --last selection.
     #[arg(long = "include-non-interactive", default_value_t = false)]
     include_non_interactive: bool,
@@ -882,6 +886,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             session_id,
             last,
             all,
+            provider,
             include_non_interactive,
             remote,
             config_overrides,
@@ -892,6 +897,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 session_id,
                 last,
                 all,
+                provider,
                 include_non_interactive,
                 config_overrides,
             );
@@ -1572,6 +1578,7 @@ fn finalize_resume_interactive(
     session_id: Option<String>,
     last: bool,
     show_all: bool,
+    show_all_providers: bool,
     include_non_interactive: bool,
     resume_cli: TuiCli,
 ) -> TuiCli {
@@ -1582,6 +1589,7 @@ fn finalize_resume_interactive(
     interactive.resume_last = last;
     interactive.resume_session_id = resume_session_id;
     interactive.resume_show_all = show_all;
+    interactive.resume_show_all_providers = show_all_providers;
     interactive.resume_include_non_interactive = include_non_interactive;
 
     // Merge resume-scoped flags and overrides with highest precedence.
@@ -1679,6 +1687,7 @@ mod tests {
             session_id,
             last,
             all,
+            provider,
             include_non_interactive,
             remote: _,
             config_overrides: resume_cli,
@@ -1693,6 +1702,7 @@ mod tests {
             session_id,
             last,
             all,
+            provider,
             include_non_interactive,
             resume_cli,
         )
@@ -2029,6 +2039,23 @@ mod tests {
         let interactive = finalize_resume_from_args(["codex", "resume", "--all"].as_ref());
         assert!(interactive.resume_picker);
         assert!(interactive.resume_show_all);
+    }
+
+    #[test]
+    fn resume_provider_flag_sets_show_all_providers() {
+        let interactive = finalize_resume_from_args(["codex", "resume", "--provider"].as_ref());
+        assert!(interactive.resume_picker);
+        assert!(interactive.resume_show_all_providers);
+        assert!(!interactive.resume_show_all);
+    }
+
+    #[test]
+    fn resume_provider_flag_stacks_with_all() {
+        let interactive =
+            finalize_resume_from_args(["codex", "resume", "--all", "--provider"].as_ref());
+        assert!(interactive.resume_picker);
+        assert!(interactive.resume_show_all);
+        assert!(interactive.resume_show_all_providers);
     }
 
     #[test]

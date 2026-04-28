@@ -30,9 +30,11 @@ use crate::app_event_sender::AppEventSender;
 use crate::key_hint;
 use crate::render::Insets;
 use crate::render::RectExt as _;
+use crate::style::opencode_link_style;
 use crate::style::user_message_style;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
+use ratatui::style::Styled as _;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AppLinkScreen {
@@ -334,7 +336,7 @@ impl AppLinkView {
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec!["Setup URL:".dim()]));
-        let url_line = Line::from(vec![self.url.clone().cyan().underlined()]);
+        let url_line = Line::from(vec![self.url.clone().set_style(opencode_link_style())]);
         lines.extend(adaptive_wrap_lines(
             vec![url_line],
             RtOptions::new(usable_width),

@@ -308,7 +308,7 @@ impl Renderable for StatusIndicatorWidget {
         if self.show_interrupt_hint {
             spans.extend(vec![
                 Span::styled(
-                    format!(" {} ", pretty_elapsed),
+                    format!(" {pretty_elapsed} "),
                     ratatui::style::Style::default()
                         .fg(opencode_secondary())
                         .bg(opencode_background_secondary())
@@ -320,7 +320,7 @@ impl Renderable for StatusIndicatorWidget {
             ]);
         } else {
             spans.push(Span::styled(
-                format!(" {} ", pretty_elapsed),
+                format!(" {pretty_elapsed} "),
                 ratatui::style::Style::default()
                     .fg(opencode_secondary())
                     .bg(opencode_background_secondary())

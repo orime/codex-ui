@@ -27,13 +27,18 @@ use crate::render::line_utils::line_to_static;
 use crate::render::line_utils::prefix_lines;
 use crate::render::line_utils::push_owned_lines;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_commentary_text;
+use crate::style::opencode_error;
+use crate::style::opencode_error_style;
+use crate::style::opencode_info_style;
+use crate::style::opencode_primary;
+use crate::style::opencode_primary_style;
+use crate::style::opencode_secondary;
+use crate::style::opencode_secondary_style;
+use crate::style::opencode_warning_style;
 use crate::style::proposed_plan_style;
 use crate::style::user_message_style;
-use crate::style::{
-    opencode_accent_style, opencode_commentary_text, opencode_info_style,
-    opencode_primary, opencode_primary_style, opencode_secondary,
-    opencode_secondary_style,
-};
 #[cfg(test)]
 use crate::test_support::PathBufExt;
 #[cfg(test)]
@@ -79,7 +84,6 @@ use codex_utils_cli::format_env_display;
 use image::DynamicImage;
 use image::ImageReader;
 use ratatui::prelude::*;
-use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
 use ratatui::style::Styled;
@@ -892,7 +896,7 @@ pub fn new_approval_decision_cell(
                 ],
             ),
             NetworkPolicyRuleAction::Deny => (
-                "✗ ".red(),
+                "✗ ".set_style(Style::default().fg(opencode_error())),
                 vec![
                     actor.subject().into(),
                     "denied".bold(),
@@ -918,12 +922,15 @@ pub fn new_approval_decision_cell(
                     snippet,
                 ],
             };
-            ("✗ ".red(), summary)
+            (
+                "✗ ".set_style(Style::default().fg(opencode_error())),
+                summary,
+            )
         }
         TimedOut => {
             let snippet = Span::from(exec_snippet(&command)).dim();
             (
-                "✗ ".red(),
+                "✗ ".set_style(Style::default().fg(opencode_error())),
                 vec![
                     "Review ".into(),
                     "timed out".bold(),
@@ -935,7 +942,7 @@ pub fn new_approval_decision_cell(
         Abort => {
             let snippet = Span::from(exec_snippet(&command)).dim();
             (
-                "✗ ".red(),
+                "✗ ".set_style(Style::default().fg(opencode_error())),
                 vec![
                     actor.subject().into(),
                     "canceled".bold(),
@@ -985,7 +992,7 @@ pub fn new_guardian_denied_patch_request(files: Vec<String>) -> Box<dyn HistoryC
 
     Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(summary),
-        "✗ ".red(),
+        "✗ ".set_style(Style::default().fg(opencode_error())),
         "  ",
     ))
 }
@@ -997,7 +1004,11 @@ pub fn new_guardian_denied_action_request(summary: String) -> Box<dyn HistoryCel
         " for ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "✗ ".red(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(
+        line,
+        "✗ ".set_style(Style::default().fg(opencode_error())),
+        "  ",
+    ))
 }
 
 pub fn new_guardian_approved_action_request(summary: String) -> Box<dyn HistoryCell> {
@@ -1007,7 +1018,11 @@ pub fn new_guardian_approved_action_request(summary: String) -> Box<dyn HistoryC
         " for ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "✔ ".set_style(Style::default().fg(opencode_primary())), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(
+        line,
+        "✔ ".set_style(Style::default().fg(opencode_primary())),
+        "  ",
+    ))
 }
 
 pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn HistoryCell> {
@@ -1027,7 +1042,7 @@ pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn Histo
 
     Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(summary),
-        "✗ ".red(),
+        "✗ ".set_style(Style::default().fg(opencode_error())),
         "  ",
     ))
 }
@@ -1039,7 +1054,11 @@ pub fn new_guardian_timed_out_action_request(summary: String) -> Box<dyn History
         " before ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "✗ ".red(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(
+        line,
+        "✗ ".set_style(Style::default().fg(opencode_error())),
+        "  ",
+    ))
 }
 
 /// Cyan history cell line showing the current review status.
@@ -1597,8 +1616,8 @@ impl HistoryCell for McpToolCallCell {
         let mut lines: Vec<Line<'static>> = Vec::new();
         let status = self.success();
         let bullet = match status {
-            Some(true) => "•".green().bold(),
-            Some(false) => "•".red().bold(),
+            Some(true) => "•".fg(opencode_primary()).bold(),
+            Some(false) => "•".fg(opencode_error()).bold(),
             None => spinner(Some(self.start_time), self.animations_enabled),
         };
         let header_text = if status.is_some() {
@@ -1854,7 +1873,11 @@ fn decode_mcp_image(block: &serde_json::Value) -> Option<DynamicImage> {
 
 #[allow(clippy::disallowed_methods)]
 pub(crate) fn new_warning_event(message: String) -> PrefixedWrappedHistoryCell {
-    PrefixedWrappedHistoryCell::new(message.yellow(), "⚠ ".yellow(), "  ")
+    PrefixedWrappedHistoryCell::new(
+        message.set_style(opencode_warning_style()),
+        "⚠ ".set_style(opencode_warning_style()),
+        "  ",
+    )
 }
 
 const TRUSTED_ACCESS_FOR_CYBER_URL: &str = "https://chatgpt.com/cyber";
@@ -1917,7 +1940,13 @@ pub(crate) fn new_deprecation_notice(
 impl HistoryCell for DeprecationNoticeCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(vec!["⚠ ".red().bold(), self.summary.clone().red()].into());
+        lines.push(
+            vec![
+                "⚠ ".set_style(opencode_error_style().add_modifier(Modifier::BOLD)),
+                self.summary.clone().set_style(opencode_error_style()),
+            ]
+            .into(),
+        );
 
         let wrap_width = width.saturating_sub(4).max(1) as usize;
 
@@ -1992,7 +2021,7 @@ pub(crate) fn new_mcp_tools_output(
         let mut header: Vec<Span<'static>> = vec!["  • ".into(), server.clone().into()];
         if !cfg.enabled {
             header.push(" ".into());
-            header.push("(disabled)".red());
+            header.push("(disabled)".set_style(opencode_error_style()));
             lines.push(header.into());
             if let Some(reason) = cfg.disabled_reason.as_ref().map(ToString::to_string) {
                 lines.push(vec!["    • Reason: ".into(), reason.dim()].into());
@@ -2327,7 +2356,8 @@ pub(crate) fn new_error_event(message: String) -> PlainHistoryCell {
     // Use a hair space (U+200A) to create a subtle, near-invisible separation
     // before the text. VS16 is intentionally omitted to keep spacing tighter
     // in terminals like Ghostty.
-    let lines: Vec<Line<'static>> = vec![vec![format!("■ {message}").red()].into()];
+    let lines: Vec<Line<'static>> =
+        vec![vec![format!("■ {message}").set_style(opencode_error_style())].into()];
     PlainHistoryCell { lines }
 }
 
@@ -2437,7 +2467,7 @@ impl HistoryCell for RequestUserInputResultCell {
                     width,
                     "    answer: ".dim(),
                     "            ".dim(),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(opencode_secondary()),
                 ));
                 continue;
             }
@@ -2450,7 +2480,7 @@ impl HistoryCell for RequestUserInputResultCell {
                     width,
                     "    answer: ".dim(),
                     "            ".dim(),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(opencode_secondary()),
                 ));
             }
             if let Some(note) = note {
@@ -2458,13 +2488,13 @@ impl HistoryCell for RequestUserInputResultCell {
                     (
                         "    note: ".dim(),
                         "          ".dim(),
-                        Style::default().fg(Color::Cyan),
+                        Style::default().fg(opencode_secondary()),
                     )
                 } else {
                     (
                         "    answer: ".dim(),
                         "            ".dim(),
-                        Style::default().fg(Color::Cyan),
+                        Style::default().fg(opencode_secondary()),
                     )
                 };
                 lines.extend(wrap_with_prefix(&note, width, label, continuation, style));
@@ -2478,7 +2508,9 @@ impl HistoryCell for RequestUserInputResultCell {
                 width,
                 "  ↳ ".set_style(opencode_info_style().add_modifier(Modifier::DIM)),
                 "    ".dim(),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(opencode_secondary())
+                    .add_modifier(Modifier::DIM),
             ));
         }
 
@@ -2615,7 +2647,9 @@ impl HistoryCell for PlanUpdateCell {
         let render_step = |status: &StepStatus, text: &str| -> Vec<Line<'static>> {
             let (box_str, step_style) = match status {
                 StepStatus::Completed => ("✔ ", Style::default().crossed_out().dim()),
-                StepStatus::InProgress => ("□ ", opencode_info_style().add_modifier(Modifier::BOLD)),
+                StepStatus::InProgress => {
+                    ("□ ", opencode_info_style().add_modifier(Modifier::BOLD))
+                }
                 StepStatus::Pending => ("□ ", Style::default().dim()),
             };
 
@@ -2673,8 +2707,7 @@ pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainHistoryCell {
 
     // Failure title
     lines.push(Line::from(
-        "✘ Failed to apply patch"
-            .set_style(opencode_accent_style().add_modifier(Modifier::BOLD)),
+        "✘ Failed to apply patch".set_style(opencode_accent_style().add_modifier(Modifier::BOLD)),
     ));
 
     if !stderr.trim().is_empty() {
@@ -3616,7 +3649,11 @@ mod tests {
             "echo something really long to ensure wrapping happens".dim(),
             " this time".bold(),
         ]);
-        let cell = PrefixedWrappedHistoryCell::new(summary, "✔ ".set_style(Style::default().fg(opencode_primary())), "  ");
+        let cell = PrefixedWrappedHistoryCell::new(
+            summary,
+            "✔ ".set_style(Style::default().fg(opencode_primary())),
+            "  ",
+        );
         let rendered = render_lines(&cell.display_lines(/*width*/ 24));
         assert_eq!(
             rendered,
@@ -3634,7 +3671,11 @@ mod tests {
     fn prefixed_wrapped_history_cell_does_not_split_url_like_token() {
         let url_like =
             "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
-        let cell = PrefixedWrappedHistoryCell::new(Line::from(url_like), "✔ ".set_style(Style::default().fg(opencode_primary())), "  ");
+        let cell = PrefixedWrappedHistoryCell::new(
+            Line::from(url_like),
+            "✔ ".set_style(Style::default().fg(opencode_primary())),
+            "  ",
+        );
         let rendered = render_lines(&cell.display_lines(/*width*/ 24));
 
         assert_eq!(

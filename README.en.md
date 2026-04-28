@@ -6,37 +6,43 @@
 ![Release](https://img.shields.io/github/v/release/orime/codex-ui?display_name=tag)
 ![Workflow](https://img.shields.io/github/actions/workflow/status/orime/codex-ui/codex-ui-release.yml?label=release)
 
-A thin release wrapper around [openai/codex](https://github.com/openai/codex).
+A deep TUI UI fork built on top of the latest [openai/codex](https://github.com/openai/codex) core.
 
-This branch has a narrow goal:
+This repository is not a "theme-only" wrapper.
 
-- stay aligned with the latest stable upstream
-- avoid relying on a local `target` directory for day-to-day use
+Its goals are:
+
+- stay aligned with the latest stable upstream core
+- preserve the official `codex` runtime, protocol, and auth behavior
+- keep applying the `codex-ui` visual and interaction language across high-visibility TUI surfaces
 - build and publish releases remotely through GitHub Actions
-- bundle the `opencode-matrix` syntax theme by default
 - keep `codex-ui` and `codex-ui-dev` as separate command contracts
 
 Current upstream alignment:
 
-- upstream tag: `rust-v0.121.0`
-- release date: `2026-04-15`
+- upstream tag: `rust-v0.125.0`
+- release date: `2026-04-24`
 
-## Repository Boundary
+## Repository Positioning
 
-This repository is intentionally kept as a thin wrapper:
+The maintenance boundary for `codex-ui` is:
 
-- preserve official `codex` behavior, auth flow, command semantics, and runtime model
-- inject `-c 'tui.theme="opencode-matrix"'` by default
-- install `opencode-matrix.tmTheme` into `~/.codex/themes`
-- never overwrite an existing `codex` command
+- stay close to upstream for the core engine
+- intentionally fork the UI layer
+- reject half-ports where only theme infrastructure is restored but visible screens are left behind
+- keep `codex-ui` as the stable release command
+- keep `codex-ui-dev` for local iteration only
 
-That means:
+The current `0.125.0` line already ports a broad set of high-visibility screens back into the `codex-ui` design language, including:
 
-- `codex-ui` is the release-facing command
-- `codex-ui-bin` is the packaged upstream `codex` binary
-- the release, install, and local-link workflows are all built around that wrapper
+- onboarding / auth / trust directory
+- update prompt / model migration
+- selection list / resume picker / oss selection
+- request-user-input / approval overlay / mcp elicitation
+- history cell / hook cell / multi agents / plugins
+- exec / diff / footer / feedback and other core panels
 
-If deeper TUI UI fork work is needed later, it should be handled as a separate porting task instead of blindly merging old UI patches into a newer upstream base.
+That is the rule going forward: upgrading upstream is not done when `style.rs` or the theme file builds. It is only done when the visible consumer surfaces are ported too.
 
 ## Installation
 
@@ -52,6 +58,7 @@ By default it will:
 - install `codex-ui` and `codex-ui-bin` into `~/.local/bin`
 - install `opencode-matrix.tmTheme` into `~/.codex/themes`
 - leave any existing `codex` command untouched
+- launch the built-in `codex-ui` fork with `opencode-matrix` enabled by default
 
 Then run:
 
@@ -72,6 +79,8 @@ Recommended usage:
 
 - use `codex-ui` for daily use, stable behavior, and release verification
 - use `codex-ui-dev` for local code changes, UI iteration, and freshly built binaries
+
+If you are validating a new upstream UI port, prefer `codex-ui-dev` first. Do not overwrite the stable launcher until local verification is done.
 
 ## Local Development
 
@@ -114,19 +123,30 @@ On tag push it will automatically:
 
 - build `aarch64-apple-darwin`
 - build `x86_64-apple-darwin`
-- build `x86_64-unknown-linux-musl`
 - generate packaged artifacts, checksums, and the installer script
 - publish a GitHub Release
+
+Release assets are currently macOS-only by design. README, installer, and workflow must stay aligned. We do not document Linux release assets unless the workflow is actually publishing them.
 
 ### Trigger a release
 
 ```sh
-git tag v0.121.0-ui.1
+git tag v0.125.0-ui.1
 git push origin main
-git push origin v0.121.0-ui.1
+git push origin v0.125.0-ui.1
 ```
 
-After that, GitHub Actions handles the remote build. No local release build is required.
+The correct order is:
+
+1. finish the upstream UI port locally
+2. run `cargo test -p codex-tui`
+3. run `just fix -p codex-tui`
+4. run `just fmt`
+5. merge to `main`
+6. tag `v0.125.0-ui.N`
+7. push the tag and let GitHub Actions publish the release
+
+Local verification comes first. Remote release comes after that.
 
 ## Upgrade Locally to the Latest Release
 
@@ -138,22 +158,26 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 
 If your environment needs it, apply your usual `proxy` / `unproxy` switch before running the installer.
 
-## Why This Structure
+## Maintenance Rules
 
-The old repository state mixed two very different concerns:
+This repository has to protect two things at the same time:
 
-- upstream upgrades
-- deep TUI UI fork work
+- keep the upstream core current
+- keep the `codex-ui` UI from collapsing back into the default Codex look
 
-Those do not move at the same speed. Keeping them tightly coupled causes predictable failures:
+The real failure modes we already hit are:
 
-- huge conflict surfaces during upstream upgrades
-- day-to-day commands depending on a local `target`
-- deleting build artifacts breaking the stable command too
+1. only porting theme infrastructure and forgetting visible screens such as `update_prompt`, `approval_overlay`, and `history_cell`
+2. letting README, installer, and workflow drift apart
+3. mixing `codex-ui` and `codex-ui-dev`, so the stable command depends on a local `target` directory
 
-The current rule is:
+Future upgrades should always follow this order:
 
-- keep `codex-ui` as a releasable wrapper on top of the latest upstream
-- port deeper UI changes later as separate, explicit work
+1. align the upstream version
+2. port the visible UI surfaces
+3. verify locally
+4. only then publish a remote release
 
-That is the maintainable boundary.
+See the maintenance checklist here:
+
+- [docs/codex-ui-maintenance.md](./docs/codex-ui-maintenance.md)

@@ -42,6 +42,8 @@ use super::InputResult;
 use crate::app_event::AppEvent;
 use crate::key_hint;
 use crate::key_hint::has_ctrl_or_alt;
+use crate::style::opencode_error;
+use crate::style::opencode_secondary;
 use crate::ui_consts::FOOTER_INDENT_COLS;
 
 /// Active composer-owned state for one Ctrl+R search interaction.
@@ -379,7 +381,7 @@ impl ChatComposer {
         let search = self.history_search.as_ref()?;
         let mut line = Line::from(vec![
             "reverse-i-search: ".dim(),
-            search.query.clone().cyan(),
+            search.query.clone().fg(opencode_secondary()),
         ]);
         match search.status {
             HistorySearchStatus::Idle => {}
@@ -392,13 +394,16 @@ impl ChatComposer {
                 line.push_span(Self::history_search_action_key_span(KeyCode::Esc));
                 line.push_span(" cancel".dim());
             }
-            HistorySearchStatus::NoMatch => line.push_span("  no match".red()),
+            HistorySearchStatus::NoMatch => line.push_span("  no match".fg(opencode_error())),
         }
         Some(line)
     }
 
     fn history_search_action_key_span(key: KeyCode) -> Span<'static> {
-        Span::from(key_hint::plain(key)).cyan().bold().not_dim()
+        Span::from(key_hint::plain(key))
+            .fg(opencode_secondary())
+            .bold()
+            .not_dim()
     }
 
     /// Returns byte ranges that should be highlighted in the current composer preview.
@@ -685,10 +690,10 @@ mod tests {
         );
 
         let query_style = line.spans[1].style;
-        assert_eq!(query_style.fg, Some(ratatui::style::Color::Cyan));
+        assert_eq!(query_style.fg, Some(crate::style::opencode_secondary()));
 
         let enter_style = line.spans[3].style;
-        assert_eq!(enter_style.fg, Some(ratatui::style::Color::Cyan));
+        assert_eq!(enter_style.fg, Some(crate::style::opencode_secondary()));
         assert!(enter_style.add_modifier.contains(Modifier::BOLD));
         assert!(enter_style.sub_modifier.contains(Modifier::DIM));
 
@@ -699,7 +704,7 @@ mod tests {
         assert!(separator_style.add_modifier.contains(Modifier::DIM));
 
         let esc_style = line.spans[6].style;
-        assert_eq!(esc_style.fg, Some(ratatui::style::Color::Cyan));
+        assert_eq!(esc_style.fg, Some(crate::style::opencode_secondary()));
         assert!(esc_style.add_modifier.contains(Modifier::BOLD));
         assert!(esc_style.sub_modifier.contains(Modifier::DIM));
 

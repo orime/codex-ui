@@ -1,10 +1,14 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 
 use crate::render::renderable::Renderable;
+use crate::style::opencode_error;
+use crate::style::opencode_secondary_style;
+use crate::style::opencode_text_muted;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
 
@@ -47,24 +51,25 @@ impl PendingThreadApprovals {
             let wrapped = adaptive_wrap_lines(
                 std::iter::once(Line::from(format!("Approval needed in {thread}"))),
                 RtOptions::new(width as usize)
-                    .initial_indent(Line::from(vec!["  ".into(), "!".red().bold(), " ".into()]))
+                    .initial_indent(Line::from(vec![
+                        "  ".into(),
+                        "!".fg(opencode_error()).bold(),
+                        " ".into(),
+                    ]))
                     .subsequent_indent(Line::from("    ")),
             );
             lines.extend(wrapped);
         }
 
         if self.threads.len() > 3 {
-            lines.push(Line::from("    ...".dim().italic()));
+            lines.push(Line::from("    ...".fg(opencode_text_muted()).italic()));
         }
 
-        lines.push(
-            Line::from(vec![
-                "    ".into(),
-                "/agent".cyan().bold(),
-                " to switch threads".dim(),
-            ])
-            .dim(),
-        );
+        lines.push(Line::from(vec![
+            "    ".into(),
+            "/agent".set_style(opencode_secondary_style().bold()),
+            " to switch threads".fg(opencode_text_muted()),
+        ]));
 
         Paragraph::new(lines).into()
     }

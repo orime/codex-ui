@@ -6,37 +6,42 @@
 ![Release](https://img.shields.io/github/v/release/orime/codex-ui?display_name=tag)
 ![Workflow](https://img.shields.io/github/actions/workflow/status/orime/codex-ui/codex-ui-release.yml?label=release)
 
-基于 [openai/codex](https://github.com/openai/codex) 的薄包装发行版。
+基于 [openai/codex](https://github.com/openai/codex) 最新内核的深度 TUI UI fork。
 
-这条分支的目标很明确：
+这个仓库不是“只换个主题”的薄包装器。
 
-- 跟上官方最新稳定版
-- 不依赖本地 `target` 目录做日常使用
+它的目标是：
+
+- 跟上官方最新稳定版内核
+- 保留 `codex` 的核心能力、协议和认证链路
+- 在高可见 TUI 页面持续落实 `codex-ui` 的视觉和交互语言
 - 通过 GitHub Actions 远程编译并发布 Release
-- 默认附带 `opencode-matrix` 语法主题
 - 明确拆开 `codex-ui` 和 `codex-ui-dev`
 
 当前对齐版本：
 
-- 上游 tag：`rust-v0.121.0`
-- 发布时间：`2026-04-15`
+- 上游 tag：`rust-v0.125.0`
+- 发布时间：`2026-04-24`
 
-## 项目边界
+## 仓库定位
 
-这个仓库当前刻意保持为“薄包装器”：
+`codex-ui` 的维护边界是：
 
-- 保留官方 `codex` 的核心行为、认证方式、命令语义和运行模型
-- 默认注入 `-c 'tui.theme="opencode-matrix"'`
-- 安装 `opencode-matrix.tmTheme` 到 `~/.codex/themes`
-- 不覆盖用户现有的 `codex` 命令
+- 内核层尽量贴近上游 `openai/codex`
+- UI 层明确做 fork，不接受“只接主题底座、不接消费层”的半移植
+- `codex-ui` 发布命令永远面向稳定可用版本
+- `codex-ui-dev` 只服务本地联调和移植验证
 
-这意味着：
+当前这条 `0.125.0` 线已经把一批高可见页面迁回 `codex-ui` 的设计语言，包括但不限于：
 
-- `codex-ui` 是一个发行命令
-- `codex-ui-bin` 是打包后的上游 `codex` 二进制
-- 仓库里的 release/安装/本地联调链路都是围绕这层薄包装展开
+- onboarding / auth / trust directory
+- update prompt / model migration
+- selection list / resume picker / oss selection
+- request-user-input / approval overlay / mcp elicitation
+- history cell / hook cell / multi agents / plugins
+- exec / diff / footer / feedback 等核心交互面板
 
-如果后续还要继续做更深的 TUI UI fork，应该作为单独移植任务处理，而不是把旧的 UI 改动直接无脑 merge 到新上游。
+这意味着：以后升级内核时，必须把“消费层 UI”当成主任务本身，而不是只恢复 `style.rs` 或主题文件就算完成。
 
 ## 安装
 
@@ -52,6 +57,7 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 - 安装 `codex-ui` 和 `codex-ui-bin` 到 `~/.local/bin`
 - 安装 `opencode-matrix.tmTheme` 到 `~/.codex/themes`
 - 不覆盖已有的 `codex`
+- 使用内置的 `codex-ui` 深度定制 TUI，并默认注入 `opencode-matrix`
 
 安装完成后直接运行：
 
@@ -72,6 +78,8 @@ codex-ui
 
 - 日常使用、稳定体验、验证 release 包：用 `codex-ui`
 - 本地改代码、联调、验证刚编译出的改动：用 `codex-ui-dev`
+
+如果只是验证上游升级后的 UI 移植，不要直接覆盖正式命令，优先用 `codex-ui-dev` 跑通。
 
 ## 本地开发
 
@@ -114,19 +122,32 @@ CODEX_UI_ALLOW_OVERWRITE_RELEASE=1 ./scripts/link-local-codex-ui.sh ~/.n/bin/cod
 
 - 构建 `aarch64-apple-darwin`
 - 构建 `x86_64-apple-darwin`
-- 构建 `x86_64-unknown-linux-musl`
 - 生成打包产物、校验和、安装脚本
 - 发布 GitHub Release
+
+当前 release 只发布 macOS 资产。这不是遗漏，是刻意收口后的现状。README、installer、workflow 必须保持一致，不能再出现“文档说支持 Linux，Release 里却没有产物”的情况。
 
 ### 触发发布
 
 ```sh
-git tag v0.121.0-ui.1
+git tag v0.125.0-ui.1
 git push origin main
-git push origin v0.121.0-ui.1
+git push origin v0.125.0-ui.1
 ```
 
-之后由 GitHub Actions 远程编译即可，不需要本地 build release。
+正式流程不是“改完就打 tag”。
+
+正确顺序是：
+
+1. 本地完成 UI 移植和 smoke check
+2. 跑 `cargo test -p codex-tui`
+3. 跑 `just fix -p codex-tui`
+4. 跑 `just fmt`
+5. 合并到 `main`
+6. 打 `v0.125.0-ui.N` tag
+7. push tag，等待 GitHub Actions 远程 release
+
+先本地验，再远程发。不要反过来。
 
 ## 本地升级到最新 Release
 
@@ -138,22 +159,26 @@ curl -fsSL https://raw.githubusercontent.com/orime/codex-ui/main/scripts/install
 
 如果是内网环境或代理异常，按你的终端习惯先做 `proxy` / `unproxy` 再执行。
 
-## 为什么这样收口
+## 维护原则
 
-之前这个仓库里混着两件事：
+这条仓库线要同时守住两件事：
 
-- 上游升级
-- 深度 TUI UI fork
+- 上游内核尽可能新
+- `codex-ui` 的 UI 定制不能退化回官方默认外观
 
-它们的节奏完全不同。把两者绑死，会导致：
+真正踩过的坑有三个：
 
-- 升上游版本时冲突面巨大
-- 日常命令依赖本地 `target`
-- 一删构建产物，正式命令也跟着坏
+1. 只迁主题基础设施，没有把 `update_prompt`、`approval_overlay`、`history_cell` 这类消费层页面接回去，结果发布出来还是朴素默认 UI。
+2. README、installer、workflow 三方口径不一致，导致用户按文档安装却拿不到对应产物。
+3. 把 `codex-ui` 和 `codex-ui-dev` 混用，导致本地 `target` 目录状态污染正式命令。
 
-这次收口后的原则是：
+以后升级时，按这个顺序做：
 
-- `codex-ui` 先稳定成最新上游的可发布包装版
-- 更深的 UI 改动以后单独移植、单独验证
+1. 先对齐上游版本
+2. 再补 UI 消费层
+3. 本地编译验证
+4. 最后才发远程 release
 
-这才是可持续维护的结构。
+维护清单见：
+
+- [docs/codex-ui-maintenance.md](./docs/codex-ui-maintenance.md)

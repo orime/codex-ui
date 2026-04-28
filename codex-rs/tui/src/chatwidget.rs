@@ -246,6 +246,7 @@ use ratatui::layout::Rect;
 use ratatui::style::Color;
 use ratatui::style::Modifier;
 use ratatui::style::Style;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
@@ -365,6 +366,9 @@ use crate::slash_command::SlashCommand;
 use crate::status::RateLimitSnapshotDisplay;
 use crate::status_indicator_widget::STATUS_DETAILS_DEFAULT_MAX_LINES;
 use crate::status_indicator_widget::StatusDetailsCapitalization;
+use crate::style::opencode_error_style;
+use crate::style::opencode_info_style;
+use crate::style::opencode_secondary_style;
 use crate::text_formatting::truncate_text;
 use crate::tui::FrameRequester;
 mod interrupts;
@@ -2294,9 +2298,9 @@ impl ChatWidget {
             vec![
                 "• ".dim(),
                 "Thread forked from ".into(),
-                name.cyan(),
+                name.set_style(opencode_secondary_style()),
                 " (".into(),
-                forked_from_id_text.cyan(),
+                forked_from_id_text.set_style(opencode_secondary_style()),
                 ")".into(),
             ]
             .into()
@@ -2304,7 +2308,7 @@ impl ChatWidget {
             vec![
                 "• ".dim(),
                 "Thread forked from ".into(),
-                forked_from_id_text.cyan(),
+                forked_from_id_text.set_style(opencode_secondary_style()),
             ]
             .into()
         };
@@ -2841,7 +2845,7 @@ impl ChatWidget {
             subtitle: Some("Memories are currently disabled in your config.".to_string()),
             footer_note: Some(Line::from(vec![
                 "Learn more: ".dim(),
-                MEMORIES_DOC_URL.cyan().underlined(),
+                MEMORIES_DOC_URL.set_style(opencode_info_style().underlined()),
             ])),
             footer_hint: Some(standard_popup_hint_line()),
             items,
@@ -8447,7 +8451,7 @@ impl ChatWidget {
         let warning = format!(
             "Warning: OpenAI base URL is overridden to {base_url}. Selecting models may not be supported or work properly."
         );
-        Some(Line::from(warning.red()))
+        Some(Line::from(warning.set_style(opencode_error_style())))
     }
 
     fn custom_openai_base_url(&self) -> Option<String> {
@@ -9176,7 +9180,7 @@ impl ChatWidget {
         let footer_note = show_elevate_sandbox_hint.then(|| {
             vec![
                 "The non-admin sandbox protects your files and prevents network access under most circumstances. However, it carries greater risk if prompt injected. To upgrade to the default sandbox, run ".dim(),
-                "/setup-default-sandbox".cyan(),
+                "/setup-default-sandbox".set_style(opencode_info_style()),
                 ".".dim(),
             ]
             .into()
@@ -10465,9 +10469,9 @@ impl ChatWidget {
         let line = vec![
             "• ".into(),
             "Thread renamed to ".into(),
-            name.cyan(),
+            name.set_style(opencode_secondary_style()),
             ", to resume this thread run ".into(),
-            resume_cmd.cyan(),
+            resume_cmd.set_style(opencode_secondary_style()),
         ];
         PlainHistoryCell::new(vec![line.into()])
     }
