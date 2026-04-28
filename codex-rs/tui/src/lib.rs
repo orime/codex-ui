@@ -616,6 +616,7 @@ async fn lookup_latest_session_target_with_app_server(
     app_server: &mut AppServerSession,
     config: &Config,
     cwd_filter: Option<&Path>,
+    show_all_providers: bool,
     include_non_interactive: bool,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     let response = app_server
@@ -623,6 +624,7 @@ async fn lookup_latest_session_target_with_app_server(
             app_server.is_remote(),
             config,
             cwd_filter,
+            show_all_providers,
             include_non_interactive,
         ))
         .await?;
@@ -636,6 +638,7 @@ fn latest_session_lookup_params(
     is_remote: bool,
     config: &Config,
     cwd_filter: Option<&Path>,
+    show_all_providers: bool,
     include_non_interactive: bool,
 ) -> ThreadListParams {
     ThreadListParams {
@@ -643,7 +646,7 @@ fn latest_session_lookup_params(
         limit: Some(1),
         sort_key: Some(AppServerThreadSortKey::UpdatedAt),
         sort_direction: None,
-        model_providers: if is_remote {
+        model_providers: if is_remote || show_all_providers {
             None
         } else {
             Some(vec![config.model_provider_id.clone()])
@@ -1289,7 +1292,8 @@ async fn run_ratatui_app(
                 unreachable!("app server should be initialized for --fork --last");
             };
             match lookup_latest_session_target_with_app_server(
-                app_server, &config, filter_cwd, /*include_non_interactive*/ false,
+                app_server, &config, filter_cwd, /*show_all_providers*/ false,
+                /*include_non_interactive*/ false,
             )
             .await?
             {
@@ -1349,6 +1353,7 @@ async fn run_ratatui_app(
             app_server,
             &config,
             filter_cwd,
+            cli.resume_show_all_providers,
             cli.resume_include_non_interactive,
         )
         .await?
@@ -1364,6 +1369,7 @@ async fn run_ratatui_app(
             &mut tui,
             &config,
             cli.resume_show_all,
+            cli.resume_show_all_providers,
             cli.resume_include_non_interactive,
             app_server,
         )
@@ -1849,10 +1855,34 @@ mod tests {
             /*is_remote*/ false,
             &config,
             Some(cwd.as_path()),
+            /*show_all_providers*/ false,
             /*include_non_interactive*/ false,
         );
 
         assert_eq!(params.model_providers, Some(vec![config.model_provider_id]));
+        assert_eq!(
+            params.cwd,
+            Some(ThreadListCwdFilter::One(cwd.to_string_lossy().to_string()))
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn latest_session_lookup_params_can_omit_provider_filter_for_local_sessions()
+    -> std::io::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let config = build_config(&temp_dir).await?;
+        let cwd = temp_dir.path().join("project");
+
+        let params = latest_session_lookup_params(
+            /*is_remote*/ false,
+            &config,
+            Some(cwd.as_path()),
+            /*show_all_providers*/ true,
+            /*include_non_interactive*/ false,
+        );
+
+        assert_eq!(params.model_providers, None);
         assert_eq!(
             params.cwd,
             Some(ThreadListCwdFilter::One(cwd.to_string_lossy().to_string()))
@@ -1867,10 +1897,8 @@ mod tests {
         let config = build_config(&temp_dir).await?;
 
         let params = latest_session_lookup_params(
-            /*is_remote*/ true,
-            &config,
-            /*cwd_filter*/ None,
-            /*include_non_interactive*/ false,
+            /*is_remote*/ true, &config, /*cwd_filter*/ None,
+            /*show_all_providers*/ false, /*include_non_interactive*/ false,
         );
 
         assert_eq!(params.model_providers, None);
@@ -1889,6 +1917,7 @@ mod tests {
             /*is_remote*/ true,
             &config,
             Some(cwd),
+            /*show_all_providers*/ false,
             /*include_non_interactive*/ false,
         );
 
@@ -1927,8 +1956,11 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn fork_last_filters_latest_session_by_cwd_unless_show_all() -> color_eyre::Result<()> {
+    #[test]
+    fn fork_last_filters_latest_session_by_cwd_unless_show_all() -> color_eyre::Result<()> {
+        const WORKER_THREADS: usize = 1;
+        const TEST_STACK_SIZE_BYTES: usize = 16 * 1024 * 1024;
+
         fn write_session_rollout(
             codex_home: &Path,
             filename_ts: &str,
@@ -2008,71 +2040,81 @@ mod tests {
             Ok(thread_id)
         }
 
-        let temp_dir = TempDir::new()?;
-        let project_cwd = temp_dir.path().join("project");
-        let other_cwd = temp_dir.path().join("other-project");
-        std::fs::create_dir_all(&project_cwd)?;
-        std::fs::create_dir_all(&other_cwd)?;
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(WORKER_THREADS)
+            .thread_stack_size(TEST_STACK_SIZE_BYTES)
+            .enable_all()
+            .build()?;
 
-        let config = ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
-            .harness_overrides(ConfigOverrides {
-                cwd: Some(project_cwd.clone()),
-                ..Default::default()
-            })
-            .build()
-            .await?;
-        let model_provider = config.model_provider_id.as_str();
-        let project_thread_id = write_session_rollout(
-            temp_dir.path(),
-            "2025-01-02T10-00-00",
-            "2025-01-02T10:00:00Z",
-            "older project session",
-            model_provider,
-            &project_cwd,
-        )?;
-        let other_thread_id = write_session_rollout(
-            temp_dir.path(),
-            "2025-01-02T12-00-00",
-            "2025-01-02T12:00:00Z",
-            "newer other project session",
-            model_provider,
-            &other_cwd,
-        )?;
+        runtime.block_on(async {
+            let temp_dir = TempDir::new()?;
+            let project_cwd = temp_dir.path().join("project");
+            let other_cwd = temp_dir.path().join("other-project");
+            std::fs::create_dir_all(&project_cwd)?;
+            std::fs::create_dir_all(&other_cwd)?;
 
-        let mut app_server =
-            AppServerSession::new(codex_app_server_client::AppServerClient::InProcess(
-                start_test_embedded_app_server(config.clone()).await?,
-            ));
-        let filter_cwd = latest_session_cwd_filter(
-            /*remote_mode*/ false, /*remote_cwd_override*/ None, &config,
-            /*show_all*/ false,
-        );
-        let scoped_target = lookup_latest_session_target_with_app_server(
-            &mut app_server,
-            &config,
-            filter_cwd,
-            /*include_non_interactive*/ false,
-        )
-        .await?
-        .expect("expected project-scoped fork --last target");
-        let show_all_filter_cwd = latest_session_cwd_filter(
-            /*remote_mode*/ false, /*remote_cwd_override*/ None, &config,
-            /*show_all*/ true,
-        );
-        let show_all_target = lookup_latest_session_target_with_app_server(
-            &mut app_server,
-            &config,
-            show_all_filter_cwd,
-            /*include_non_interactive*/ false,
-        )
-        .await?
-        .expect("expected global fork --last target");
-        app_server.shutdown().await?;
+            let config = ConfigBuilder::default()
+                .codex_home(temp_dir.path().to_path_buf())
+                .harness_overrides(ConfigOverrides {
+                    cwd: Some(project_cwd.clone()),
+                    ..Default::default()
+                })
+                .build()
+                .await?;
+            let model_provider = config.model_provider_id.as_str();
+            let project_thread_id = write_session_rollout(
+                temp_dir.path(),
+                "2025-01-02T10-00-00",
+                "2025-01-02T10:00:00Z",
+                "older project session",
+                model_provider,
+                &project_cwd,
+            )?;
+            let other_thread_id = write_session_rollout(
+                temp_dir.path(),
+                "2025-01-02T12-00-00",
+                "2025-01-02T12:00:00Z",
+                "newer other project session",
+                model_provider,
+                &other_cwd,
+            )?;
 
-        assert_eq!(scoped_target.thread_id, project_thread_id);
-        assert_eq!(show_all_target.thread_id, other_thread_id);
-        Ok(())
+            let mut app_server =
+                AppServerSession::new(codex_app_server_client::AppServerClient::InProcess(
+                    start_test_embedded_app_server(config.clone()).await?,
+                ));
+            let filter_cwd = latest_session_cwd_filter(
+                /*remote_mode*/ false, /*remote_cwd_override*/ None, &config,
+                /*show_all*/ false,
+            );
+            let scoped_target = lookup_latest_session_target_with_app_server(
+                &mut app_server,
+                &config,
+                filter_cwd,
+                /*show_all_providers*/ false,
+                /*include_non_interactive*/ false,
+            )
+            .await?
+            .expect("expected project-scoped fork --last target");
+            let show_all_filter_cwd = latest_session_cwd_filter(
+                /*remote_mode*/ false, /*remote_cwd_override*/ None, &config,
+                /*show_all*/ true,
+            );
+            let show_all_target = lookup_latest_session_target_with_app_server(
+                &mut app_server,
+                &config,
+                show_all_filter_cwd,
+                /*show_all_providers*/ false,
+                /*include_non_interactive*/ false,
+            )
+            .await?
+            .expect("expected global fork --last target");
+            app_server.shutdown().await?;
+
+            assert_eq!(scoped_target.thread_id, project_thread_id);
+            assert_eq!(show_all_target.thread_id, other_thread_id);
+            Ok(())
+        })
     }
 
     #[tokio::test]

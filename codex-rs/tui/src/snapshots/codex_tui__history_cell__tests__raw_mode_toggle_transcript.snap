@@ -1,18 +1,21 @@
 ---
 source: tui/src/history_cell.rs
+assertion_line: 3857
 expression: rendered
 ---
 rich before:
 
-› Please format this
+│ Please format this
   for copying
 
 • - first item
   - second item
   
-  | Col | Value |
-  | --- | --- |
-  | code | x = 1 |
+  ┌──────┬───────┐
+  │ Col  │ Value │
+  ├──────┼───────┤
+  │ code │ x = 1 │
+  └──────┴───────┘
   
   copy me
 • Called
@@ -40,15 +43,17 @@ second line
 
 rich after:
 
-› Please format this
+│ Please format this
   for copying
 
 • - first item
   - second item
   
-  | Col | Value |
-  | --- | --- |
-  | code | x = 1 |
+  ┌──────┬───────┐
+  │ Col  │ Value │
+  ├──────┼───────┤
+  │ code │ x = 1 │
+  └──────┴───────┘
   
   copy me
 • Called

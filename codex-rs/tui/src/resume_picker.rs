@@ -17,6 +17,9 @@ use crate::markdown::append_markdown;
 use crate::pager_overlay::Overlay;
 use crate::session_resume::resolve_session_thread_id;
 use crate::status::format_directory_display;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_error_style;
+use crate::style::opencode_secondary_style;
 use crate::terminal_palette::best_color;
 use crate::terminal_palette::default_bg;
 use crate::text_formatting::truncate_text;
@@ -303,6 +306,7 @@ pub async fn run_resume_picker_with_app_server(
     tui: &mut Tui,
     config: &Config,
     show_all: bool,
+    show_all_providers: bool,
     include_non_interactive: bool,
     app_server: AppServerSession,
 ) -> Result<SessionSelection> {
@@ -310,6 +314,7 @@ pub async fn run_resume_picker_with_app_server(
         tui,
         config,
         show_all,
+        show_all_providers,
         include_non_interactive,
         app_server,
         SessionPickerLaunchContext::Startup,
@@ -321,6 +326,7 @@ pub async fn run_resume_picker_from_existing_session_with_app_server(
     tui: &mut Tui,
     config: &Config,
     show_all: bool,
+    show_all_providers: bool,
     include_non_interactive: bool,
     app_server: AppServerSession,
 ) -> Result<SessionSelection> {
@@ -328,6 +334,7 @@ pub async fn run_resume_picker_from_existing_session_with_app_server(
         tui,
         config,
         show_all,
+        show_all_providers,
         include_non_interactive,
         app_server,
         SessionPickerLaunchContext::ExistingSession,
@@ -339,6 +346,7 @@ async fn run_resume_picker_with_launch_context(
     tui: &mut Tui,
     config: &Config,
     show_all: bool,
+    show_all_providers: bool,
     include_non_interactive: bool,
     app_server: AppServerSession,
     launch_context: SessionPickerLaunchContext,
@@ -352,7 +360,7 @@ async fn run_resume_picker_with_launch_context(
         app_server.remote_cwd_override(),
     );
     let local_filter_cwd = local_picker_cwd_filter(&cwd_filter, is_remote);
-    let provider_filter = picker_provider_filter(config, is_remote);
+    let provider_filter = picker_provider_filter(config, is_remote, show_all_providers);
     let pager_keymap = picker_pager_keymap(config)?;
     let options = SessionPickerRunOptions {
         show_all,
@@ -397,7 +405,8 @@ pub async fn run_fork_picker_with_app_server(
         app_server.remote_cwd_override(),
     );
     let local_filter_cwd = local_picker_cwd_filter(&cwd_filter, is_remote);
-    let provider_filter = picker_provider_filter(config, is_remote);
+    let provider_filter =
+        picker_provider_filter(config, is_remote, /*show_all_providers*/ false);
     let pager_keymap = picker_pager_keymap(config)?;
     let options = SessionPickerRunOptions {
         show_all,
@@ -507,8 +516,12 @@ fn local_picker_cwd_filter(cwd_filter: &Option<PathBuf>, is_remote: bool) -> Opt
     if is_remote { None } else { cwd_filter.clone() }
 }
 
-fn picker_provider_filter(config: &Config, is_remote: bool) -> ProviderFilter {
-    if is_remote {
+fn picker_provider_filter(
+    config: &Config,
+    is_remote: bool,
+    show_all_providers: bool,
+) -> ProviderFilter {
+    if is_remote || show_all_providers {
         ProviderFilter::Any
     } else {
         ProviderFilter::MatchDefault(config.model_provider_id.to_string())
@@ -1881,11 +1894,10 @@ fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
         };
 
         // Header
-        let header_title = if default_bg().is_some_and(is_light) {
-            state.action.title().bold().fg(best_color((0, 100, 0)))
-        } else {
-            state.action.title().bold().cyan()
-        };
+        let header_title = state
+            .action
+            .title()
+            .set_style(opencode_secondary_style().bold());
         let header_line: Line = vec![header_title].into();
         frame.render_widget_ref(header_line, chrome(header));
 
@@ -1914,7 +1926,7 @@ fn list_viewport_width(width: u16) -> u16 {
 
 fn search_line(state: &PickerState, width: u16) -> Line<'_> {
     if let Some(error) = state.inline_error.as_deref() {
-        return Line::from(error.red());
+        return Line::from(error.set_style(opencode_error_style()));
     }
     let search = if state.query.is_empty() {
         "Type to search".dim()
@@ -2015,7 +2027,7 @@ fn toolbar_value(label: &'static str, active: bool, focused: bool) -> Span<'stat
     if active {
         let value = format!("[{label}]");
         if focused {
-            value.magenta()
+            value.set_style(opencode_accent_style())
         } else {
             value.into()
         }
@@ -2942,7 +2954,9 @@ fn render_transcript_preview_lines(
         Some(TranscriptPreviewState::Failed) => vec![
             vec![
                 "  │ ".dim(),
-                "Could not load transcript preview".italic().red(),
+                "Could not load transcript preview"
+                    .italic()
+                    .set_style(opencode_error_style()),
             ]
             .into(),
         ],

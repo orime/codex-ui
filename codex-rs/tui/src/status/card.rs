@@ -4,6 +4,8 @@ use crate::history_cell::PlainHistoryCell;
 use crate::history_cell::plain_lines;
 use crate::history_cell::with_border_with_inner_width;
 use crate::legacy_core::config::Config;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_info_style;
 use crate::token_usage::TokenUsage;
 use crate::token_usage::TokenUsageInfo;
 use crate::version::CODEX_CLI_VERSION;
@@ -20,6 +22,7 @@ use codex_protocol::models::PermissionProfile;
 use codex_protocol::openai_models::ReasoningEffort;
 use codex_utils_sandbox_summary::summarize_permission_profile;
 use ratatui::prelude::*;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -206,7 +209,7 @@ pub(crate) fn new_status_output_with_rate_limits_handle(
     agents_summary: String,
     refreshing_rate_limits: bool,
 ) -> (CompositeHistoryCell, StatusHistoryHandle) {
-    let command = PlainHistoryCell::new(vec!["/status".magenta().into()]);
+    let command = PlainHistoryCell::new(vec!["/status".set_style(opencode_accent_style()).into()]);
     let (card, handle) = StatusHistoryCell::new(
         config,
         runtime_model_provider_base_url,
@@ -716,14 +719,13 @@ impl HistoryCell for StatusHistoryCell {
         let value_width = formatter.value_width(available_inner_width);
 
         let note_first_line = Line::from(vec![
-            Span::from("Visit ").cyan(),
+            Span::from("Visit ").set_style(opencode_info_style()),
             "https://chatgpt.com/codex/settings/usage"
-                .cyan()
-                .underlined(),
-            Span::from(" for up-to-date").cyan(),
+                .set_style(opencode_info_style().underlined()),
+            Span::from(" for up-to-date").set_style(opencode_info_style()),
         ]);
         let note_second_line = Line::from(vec![
-            Span::from("information on rate limits and credits").cyan(),
+            Span::from("information on rate limits and credits").set_style(opencode_info_style()),
         ]);
         let note_lines = adaptive_wrap_lines(
             [note_first_line, note_second_line],

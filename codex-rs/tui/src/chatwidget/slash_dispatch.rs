@@ -949,7 +949,8 @@ impl ChatWidget {
             | SlashCommand::Hooks
             | SlashCommand::Title
             | SlashCommand::Statusline
-            | SlashCommand::Theme => QueueDrain::Stop,
+            | SlashCommand::Theme
+            | SlashCommand::ThemeUi => QueueDrain::Stop,
         }
     }
 

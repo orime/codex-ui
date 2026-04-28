@@ -45,6 +45,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::style::opencode_error;
+use crate::style::opencode_primary;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use unicode_width::UnicodeWidthChar;
 
@@ -393,9 +395,9 @@ fn collect_rows(changes: &HashMap<PathBuf, FileChange>) -> Vec<Row> {
 fn render_line_count_summary(added: usize, removed: usize) -> Vec<RtSpan<'static>> {
     let mut spans = Vec::new();
     spans.push("(".into());
-    spans.push(format!("+{added}").green());
+    spans.push(format!("+{added}").fg(opencode_primary()));
     spans.push(" ".into());
-    spans.push(format!("-{removed}").red());
+    spans.push(format!("-{removed}").fg(opencode_error()));
     spans.push(")".into());
     spans
 }
@@ -1228,7 +1230,7 @@ fn style_sign_add(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match theme {
-        DiffTheme::Light => Style::default().fg(Color::Green),
+        DiffTheme::Light => Style::default().fg(opencode_primary()),
         DiffTheme::Dark => style_add(theme, color_level, diff_backgrounds),
     }
 }
@@ -1240,7 +1242,7 @@ fn style_sign_del(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match theme {
-        DiffTheme::Light => Style::default().fg(Color::Red),
+        DiffTheme::Light => Style::default().fg(opencode_error()),
         DiffTheme::Dark => style_del(theme, color_level, diff_backgrounds),
     }
 }
@@ -1262,17 +1264,19 @@ fn style_add(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match (theme, color_level, diff_backgrounds.add) {
-        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(Color::Green),
+        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(opencode_primary()),
         (DiffTheme::Light, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Light, DiffColorLevel::Ansi256, Some(bg)) => Style::default().bg(bg),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Dark, DiffColorLevel::Ansi256, Some(bg)) => {
-            Style::default().fg(Color::Green).bg(bg)
+            Style::default().fg(opencode_primary()).bg(bg)
         }
         (DiffTheme::Light, DiffColorLevel::TrueColor, None)
         | (DiffTheme::Light, DiffColorLevel::Ansi256, None) => Style::default(),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, None)
-        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => Style::default().fg(Color::Green),
+        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => {
+            Style::default().fg(opencode_primary())
+        }
     }
 }
 
@@ -1286,17 +1290,17 @@ fn style_del(
     diff_backgrounds: ResolvedDiffBackgrounds,
 ) -> Style {
     match (theme, color_level, diff_backgrounds.del) {
-        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(Color::Red),
+        (_, DiffColorLevel::Ansi16, _) => Style::default().fg(opencode_error()),
         (DiffTheme::Light, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Light, DiffColorLevel::Ansi256, Some(bg)) => Style::default().bg(bg),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, Some(bg))
         | (DiffTheme::Dark, DiffColorLevel::Ansi256, Some(bg)) => {
-            Style::default().fg(Color::Red).bg(bg)
+            Style::default().fg(opencode_error()).bg(bg)
         }
         (DiffTheme::Light, DiffColorLevel::TrueColor, None)
         | (DiffTheme::Light, DiffColorLevel::Ansi256, None) => Style::default(),
         (DiffTheme::Dark, DiffColorLevel::TrueColor, None)
-        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => Style::default().fg(Color::Red),
+        | (DiffTheme::Dark, DiffColorLevel::Ansi256, None) => Style::default().fg(opencode_error()),
     }
 }
 
@@ -1323,7 +1327,7 @@ mod tests {
             DiffColorLevel::Ansi16,
             fallback_diff_backgrounds(DiffTheme::Dark, DiffColorLevel::Ansi16),
         );
-        assert_eq!(style.fg, Some(Color::Green));
+        assert_eq!(style.fg, Some(crate::style::opencode_primary()));
         assert_eq!(style.bg, None);
     }
 
@@ -1334,7 +1338,7 @@ mod tests {
             DiffColorLevel::Ansi16,
             fallback_diff_backgrounds(DiffTheme::Dark, DiffColorLevel::Ansi16),
         );
-        assert_eq!(style.fg, Some(Color::Red));
+        assert_eq!(style.fg, Some(crate::style::opencode_error()));
         assert_eq!(style.bg, None);
     }
 
@@ -1345,7 +1349,7 @@ mod tests {
             DiffColorLevel::Ansi16,
             fallback_diff_backgrounds(DiffTheme::Dark, DiffColorLevel::Ansi16),
         );
-        assert_eq!(add_sign.fg, Some(Color::Green));
+        assert_eq!(add_sign.fg, Some(crate::style::opencode_primary()));
         assert_eq!(add_sign.bg, None);
 
         let del_sign = style_sign_del(
@@ -1353,7 +1357,7 @@ mod tests {
             DiffColorLevel::Ansi16,
             fallback_diff_backgrounds(DiffTheme::Dark, DiffColorLevel::Ansi16),
         );
-        assert_eq!(del_sign.fg, Some(Color::Red));
+        assert_eq!(del_sign.fg, Some(crate::style::opencode_error()));
         assert_eq!(del_sign.bg, None);
     }
     fn diff_summary_for_tests(changes: &HashMap<PathBuf, FileChange>) -> Vec<RtLine<'static>> {

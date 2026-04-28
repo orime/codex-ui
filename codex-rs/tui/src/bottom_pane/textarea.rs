@@ -16,6 +16,7 @@ use crate::keymap::EditorKeymap;
 use crate::keymap::RuntimeKeymap;
 use crate::keymap::VimNormalKeymap;
 use crate::keymap::VimOperatorKeymap;
+use crate::style::opencode_secondary;
 use codex_protocol::user_input::ByteRange;
 use codex_protocol::user_input::TextElement as UserTextElement;
 use crossterm::event::KeyCode;
@@ -1970,7 +1971,7 @@ impl TextArea {
                 }
                 let styled = &self.text[overlap_start..overlap_end];
                 let x_off = self.text[line_range.start..overlap_start].width() as u16;
-                let style = base_style.fg(ratatui::style::Color::Cyan);
+                let style = base_style.fg(opencode_secondary());
                 buf.set_string(area.x + x_off, y, styled, style);
             }
 

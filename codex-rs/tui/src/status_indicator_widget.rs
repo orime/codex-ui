@@ -131,7 +131,7 @@ impl StatusIndicatorWidget {
             });
     }
 
-    /// Update the inline suffix text shown after `({elapsed} • esc to interrupt)`.
+    /// Update the inline suffix text shown after the elapsed / interrupt segment.
     ///
     /// Callers should provide plain, already-contextualized text. Passing
     /// verbose status prose here can cause frequent width truncation and hide
@@ -282,10 +282,14 @@ impl Renderable for StatusIndicatorWidget {
             ));
         }
         if self.animations_enabled {
-            spans.extend(shimmer_text(&self.header, motion_mode).into_iter().map(|mut span| {
-                span.style = span.style.patch(header_style);
-                span
-            }));
+            spans.extend(
+                shimmer_text(&self.header, motion_mode)
+                    .into_iter()
+                    .map(|mut span| {
+                        span.style = span.style.patch(header_style);
+                        span
+                    }),
+            );
             spans.push(Span::styled(
                 " ".to_string(),
                 ratatui::style::Style::default().bg(opencode_primary()),
@@ -296,7 +300,7 @@ impl Renderable for StatusIndicatorWidget {
         if self.show_interrupt_hint {
             spans.extend(vec![
                 Span::styled(
-                    format!(" {} ", pretty_elapsed),
+                    format!(" {pretty_elapsed} "),
                     ratatui::style::Style::default()
                         .fg(opencode_secondary())
                         .bg(opencode_background_secondary())
@@ -308,7 +312,7 @@ impl Renderable for StatusIndicatorWidget {
             ]);
         } else {
             spans.push(Span::styled(
-                format!(" {} ", pretty_elapsed),
+                format!(" {pretty_elapsed} "),
                 ratatui::style::Style::default()
                     .fg(opencode_secondary())
                     .bg(opencode_background_secondary())
@@ -451,7 +455,7 @@ mod tests {
             .map(ratatui::buffer::Cell::symbol)
             .collect::<String>();
 
-        assert!(line.starts_with("Working (0s • esc to interrupt)"));
+        assert!(line.starts_with(" Working  0s  esc interrupt"));
     }
 
     #[test]

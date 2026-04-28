@@ -25,6 +25,11 @@ The workflows in this directory are split so that pull requests get fast, review
   - release-profile Cargo builds
   - cross-platform `argument-comment-lint`
   - Linux remote-env tests
+- `codex-ui-release.yml` is the downstream release workflow for the `orime/codex-ui` fork.
+  It is intentionally narrower than the upstream release matrix and currently publishes only:
+  - `aarch64-apple-darwin`
+  - `x86_64-apple-darwin`
+  Keep this file, `README*`, and `scripts/install-codex-ui.sh` in sync.
 
 ## Rule Of Thumb
 

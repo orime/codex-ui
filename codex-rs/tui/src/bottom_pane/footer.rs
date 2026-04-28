@@ -45,10 +45,20 @@ use crate::key_hint;
 use crate::key_hint::KeyBinding;
 use crate::render::line_utils::prefix_lines;
 use crate::status::format_tokens_compact;
+use crate::style::opencode_accent;
+use crate::style::opencode_background;
+use crate::style::opencode_background_secondary;
+use crate::style::opencode_info;
+use crate::style::opencode_muted_badge_style;
+use crate::style::opencode_secondary;
+use crate::style::opencode_success;
+use crate::style::opencode_text_muted;
+use crate::style::opencode_warning;
 use crate::ui_consts::FOOTER_INDENT_COLS;
 use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -152,11 +162,29 @@ impl CollaborationModeIndicator {
     }
 
     fn styled_span(self, show_cycle_hint: bool) -> Span<'static> {
-        let label = self.label(show_cycle_hint);
+        let label = format!(" {} ", self.label(show_cycle_hint));
         match self {
-            CollaborationModeIndicator::Plan => Span::from(label).magenta(),
-            CollaborationModeIndicator::PairProgramming => Span::from(label).cyan(),
-            CollaborationModeIndicator::Execute => Span::from(label).dim(),
+            CollaborationModeIndicator::Plan => Span::styled(
+                label,
+                Style::default()
+                    .fg(opencode_background())
+                    .bg(opencode_accent())
+                    .bold(),
+            ),
+            CollaborationModeIndicator::PairProgramming => Span::styled(
+                label,
+                Style::default()
+                    .fg(opencode_background())
+                    .bg(opencode_secondary())
+                    .bold(),
+            ),
+            CollaborationModeIndicator::Execute => Span::styled(
+                label,
+                Style::default()
+                    .fg(opencode_background())
+                    .bg(opencode_background_secondary())
+                    .bold(),
+            ),
         }
     }
 }
@@ -321,26 +349,26 @@ fn left_side_line(
         SummaryHintKind::Shortcuts => {
             if let Some(key) = key_hints.toggle_shortcuts {
                 line.push_span(key);
-                line.push_span(" for shortcuts".dim());
+                line.push_span(" for shortcuts".fg(opencode_secondary()).bold());
             }
         }
         SummaryHintKind::QueueMessage => {
             if let Some(key) = key_hints.queue {
                 line.push_span(key);
-                line.push_span(" to queue message".dim());
+                line.push_span(" to queue message".fg(opencode_success()).bold());
             }
         }
         SummaryHintKind::QueueShort => {
             if let Some(key) = key_hints.queue {
                 line.push_span(key);
-                line.push_span(" to queue".dim());
+                line.push_span(" to queue".fg(opencode_success()).bold());
             }
         }
     };
 
     if let Some(collaboration_mode_indicator) = collaboration_mode_indicator {
         if !matches!(state.hint, SummaryHintKind::None) {
-            line.push_span(" · ".dim());
+            line.push_span("  ");
         }
         line.push_span(collaboration_mode_indicator.styled_span(state.show_cycle_hint));
     }
@@ -718,7 +746,9 @@ fn footer_from_props_lines(
         FooterMode::QuitShortcutReminder => {
             vec![quit_shortcut_reminder_line(props.quit_shortcut_key)]
         }
-        FooterMode::HistorySearch => vec![Line::from("reverse-i-search: ").dim()],
+        FooterMode::HistorySearch => {
+            vec![Line::from("reverse-i-search: ").fg(opencode_secondary())]
+        }
         FooterMode::ComposerEmpty => {
             let state = LeftSideState {
                 hint: if show_shortcuts_hint {
@@ -783,10 +813,22 @@ pub(crate) fn passive_footer_status_line(props: &FooterProps) -> Option<Line<'st
 
     if let Some(active_agent_label) = props.active_agent_label.as_ref() {
         if let Some(existing) = line.as_mut() {
-            existing.spans.push(" · ".dim());
-            existing.spans.push(active_agent_label.clone().dim());
+            existing.spans.push(" · ".fg(opencode_text_muted()));
+            existing.spans.push(Span::styled(
+                format!(" {active_agent_label} "),
+                Style::default()
+                    .fg(opencode_background())
+                    .bg(opencode_info())
+                    .bold(),
+            ));
         } else {
-            line = Some(Line::from(active_agent_label.clone()).dim());
+            line = Some(Line::from(Span::styled(
+                format!(" {active_agent_label} "),
+                Style::default()
+                    .fg(opencode_background())
+                    .bg(opencode_info())
+                    .bold(),
+            )));
         }
     }
 
@@ -847,10 +889,13 @@ fn footer_hint_items_line(items: &[(String, String)]) -> Line<'static> {
     let mut spans = Vec::with_capacity(items.len() * 4);
     for (idx, (key, label)) in items.iter().enumerate() {
         spans.push(" ".into());
-        spans.push(key.clone().bold());
-        spans.push(format!(" {label}").into());
+        spans.push(Span::styled(
+            key.clone(),
+            opencode_muted_badge_style().bold(),
+        ));
+        spans.push(format!(" {label}").fg(opencode_secondary()));
         if idx + 1 != items.len() {
-            spans.push("   ".into());
+            spans.push("   ".fg(opencode_text_muted()));
         }
     }
     Line::from(spans)
@@ -866,21 +911,23 @@ struct ShortcutsState {
 }
 
 fn quit_shortcut_reminder_line(key: KeyBinding) -> Line<'static> {
-    Line::from(vec![key.into(), " again to quit".into()]).dim()
+    Line::from(vec![key.into(), " again to quit".fg(opencode_warning())])
 }
 
 fn esc_hint_line(esc_backtrack_hint: bool) -> Line<'static> {
     let esc = key_hint::plain(KeyCode::Esc);
     if esc_backtrack_hint {
-        Line::from(vec![esc.into(), " again to edit previous message".into()]).dim()
+        Line::from(vec![
+            esc.into(),
+            " again to edit previous message".fg(opencode_secondary()),
+        ])
     } else {
         Line::from(vec![
             esc.into(),
             " ".into(),
             esc.into(),
-            " to edit previous message".into(),
+            " to edit previous message".fg(opencode_secondary()),
         ])
-        .dim()
     }
 }
 

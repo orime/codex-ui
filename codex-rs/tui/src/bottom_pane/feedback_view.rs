@@ -5,6 +5,8 @@ use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
+use ratatui::style::Styled as _;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -19,6 +21,8 @@ use crate::app_event::FeedbackCategory;
 use crate::app_event_sender::AppEventSender;
 use crate::history_cell;
 use crate::render::renderable::Renderable;
+use crate::style::opencode_link_style;
+use crate::style::opencode_secondary;
 
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;
@@ -268,7 +272,7 @@ pub(crate) fn should_show_feedback_connectivity_details(
 }
 
 fn gutter() -> Span<'static> {
-    "▌ ".cyan()
+    Span::styled("▌ ", Style::default().fg(opencode_secondary()))
 }
 
 fn feedback_title_and_placeholder(category: FeedbackCategory) -> (String, String) {
@@ -329,7 +333,7 @@ pub(crate) fn feedback_success_cell(
         Some(url) if feedback_audience == FeedbackAudience::OpenAiEmployee => {
             lines.extend([
                 "".into(),
-                Line::from(vec!["  ".into(), url.cyan().underlined()]),
+                Line::from(vec!["  ".into(), url.set_style(opencode_link_style())]),
                 "".into(),
                 Line::from("  Share this and add some info about your problem:"),
                 Line::from(vec![
@@ -341,7 +345,7 @@ pub(crate) fn feedback_success_cell(
         Some(url) => {
             lines.extend([
                 "".into(),
-                Line::from(vec!["  ".into(), url.cyan().underlined()]),
+                Line::from(vec!["  ".into(), url.set_style(opencode_link_style())]),
                 "".into(),
                 Line::from(vec![
                     "  Or mention your thread ID ".into(),

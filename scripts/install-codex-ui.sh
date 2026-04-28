@@ -137,11 +137,8 @@ case "$(uname -s)" in
   Darwin)
     os="darwin"
     ;;
-  Linux)
-    os="linux"
-    ;;
   *)
-    echo "install-codex-ui.sh currently supports macOS and Linux only." >&2
+    echo "install-codex-ui.sh currently supports macOS only." >&2
     exit 1
     ;;
 esac
@@ -173,10 +170,6 @@ case "$os-$arch" in
   darwin-x86_64)
     target="x86_64-apple-darwin"
     platform_label="macOS (Intel)"
-    ;;
-  linux-x86_64)
-    target="x86_64-unknown-linux-musl"
-    platform_label="Linux (x64)"
     ;;
   *)
     echo "Unsupported platform: $os-$arch" >&2
@@ -241,5 +234,5 @@ case "$path_action" in
 esac
 
 printf 'codex-ui %s installed successfully.\n' "$resolved_version"
-printf 'Default launcher binding: built-in matrix UI + opencode-matrix syntax theme.\n'
+printf 'Default launcher binding: codex-ui fork UI + opencode-matrix syntax theme.\n'
 printf 'This installation does not overwrite your existing codex command.\n'

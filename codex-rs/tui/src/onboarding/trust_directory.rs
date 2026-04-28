@@ -21,6 +21,8 @@ use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::render::renderable::RenderableExt as _;
 use crate::selection_list::selection_option_row;
+use crate::style::opencode_error_style;
+use ratatui::style::Styled as _;
 
 use super::onboarding_screen::StepState;
 pub(crate) struct TrustDirectoryWidget {
@@ -100,7 +102,7 @@ impl WidgetRef for &TrustDirectoryWidget {
         if let Some(error) = &self.error {
             column.push(
                 Paragraph::new(error.to_string())
-                    .red()
+                    .set_style(opencode_error_style())
                     .wrap(Wrap { trim: true })
                     .inset(Insets::tlbr(
                         /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,

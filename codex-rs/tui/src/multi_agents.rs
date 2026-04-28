@@ -6,6 +6,11 @@
 
 use crate::history_cell::PlainHistoryCell;
 use crate::render::line_utils::prefix_lines;
+use crate::style::opencode_accent_style;
+use crate::style::opencode_error_style;
+use crate::style::opencode_primary_style;
+use crate::style::opencode_secondary_style;
+use crate::style::opencode_warning_style;
 use crate::text_formatting::truncate_text;
 use codex_app_server_protocol::CollabAgentState;
 use codex_app_server_protocol::CollabAgentStatus;
@@ -20,6 +25,7 @@ use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 #[cfg(target_os = "macos")]
 use crossterm::event::KeyModifiers;
+use ratatui::style::Styled as _;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -64,7 +70,7 @@ pub(crate) fn agent_picker_status_dot_spans(is_closed: bool) -> Vec<Span<'static
     let dot = if is_closed {
         "•".into()
     } else {
-        "•".green()
+        "•".set_style(opencode_primary_style())
     };
     vec![dot, " ".into()]
 }
@@ -446,11 +452,11 @@ fn agent_label_spans(agent: AgentLabel<'_>) -> Vec<Span<'static>> {
     let role = agent.role.map(str::trim).filter(|role| !role.is_empty());
 
     if let Some(nickname) = nickname {
-        spans.push(Span::from(nickname.to_string()).cyan().bold());
+        spans.push(Span::from(nickname.to_string()).set_style(opencode_secondary_style().bold()));
     } else if let Some(thread_id) = agent.thread_id {
-        spans.push(Span::from(thread_id.to_string()).cyan());
+        spans.push(Span::from(thread_id.to_string()).set_style(opencode_secondary_style()));
     } else {
-        spans.push(Span::from("agent").cyan());
+        spans.push(Span::from("agent").set_style(opencode_secondary_style()));
     }
 
     if let Some(role) = role {
@@ -477,7 +483,10 @@ fn spawn_request_spans(spawn_request: Option<&SpawnRequestSummary>) -> Vec<Span<
         format!("({model} {})", spawn_request.reasoning_effort)
     };
 
-    vec![Span::from(" ").dim(), Span::from(details).magenta()]
+    vec![
+        Span::from(" ").dim(),
+        Span::from(details).set_style(opencode_accent_style()),
+    ]
 }
 
 fn prompt_line(prompt: &str) -> Option<Line<'static>> {
@@ -558,13 +567,17 @@ fn status_summary_line(status: Option<&CollabAgentState>, fallback_error: &str) 
 
 fn status_summary_spans(status: &CollabAgentState) -> Vec<Span<'static>> {
     match status.status {
-        CollabAgentStatus::PendingInit => vec![Span::from("Pending init").cyan()],
-        CollabAgentStatus::Running => vec![Span::from("Running").cyan().bold()],
-        // Allow `.yellow()`
-        #[allow(clippy::disallowed_methods)]
-        CollabAgentStatus::Interrupted => vec![Span::from("Interrupted").yellow()],
+        CollabAgentStatus::PendingInit => {
+            vec![Span::from("Pending init").set_style(opencode_secondary_style())]
+        }
+        CollabAgentStatus::Running => {
+            vec![Span::from("Running").set_style(opencode_secondary_style().bold())]
+        }
+        CollabAgentStatus::Interrupted => {
+            vec![Span::from("Interrupted").set_style(opencode_warning_style())]
+        }
         CollabAgentStatus::Completed => {
-            let mut spans = vec![Span::from("Completed").green()];
+            let mut spans = vec![Span::from("Completed").set_style(opencode_primary_style())];
             if let Some(message) = status.message.as_ref() {
                 let message_preview = truncate_text(
                     &message.split_whitespace().collect::<Vec<_>>().join(" "),
@@ -581,12 +594,14 @@ fn status_summary_spans(status: &CollabAgentState) -> Vec<Span<'static>> {
             error_summary_spans(status.message.as_deref().unwrap_or("Agent errored"))
         }
         CollabAgentStatus::Shutdown => vec![Span::from("Shutdown")],
-        CollabAgentStatus::NotFound => vec![Span::from("Not found").red()],
+        CollabAgentStatus::NotFound => {
+            vec![Span::from("Not found").set_style(opencode_error_style())]
+        }
     }
 }
 
 fn error_summary_spans(error: &str) -> Vec<Span<'static>> {
-    let mut spans = vec![Span::from("Error").red()];
+    let mut spans = vec![Span::from("Error").set_style(opencode_error_style())];
     let error_preview = truncate_text(
         &error.split_whitespace().collect::<Vec<_>>().join(" "),
         COLLAB_AGENT_ERROR_PREVIEW_GRAPHEMES,
@@ -608,7 +623,6 @@ mod tests {
     use crossterm::event::KeyModifiers;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
-    use ratatui::style::Color;
     use ratatui::style::Modifier;
     use std::collections::HashMap;
 
@@ -811,13 +825,23 @@ mod tests {
         let lines = cell.display_lines(/*width*/ 200);
         let title = &lines[0];
         assert_eq!(title.spans[2].content.as_ref(), "Robie");
-        assert_eq!(title.spans[2].style.fg, Some(Color::Cyan));
+        assert_eq!(
+            title.spans[2].style.fg,
+            Some(
+                crate::style::opencode_secondary_style()
+                    .fg
+                    .expect("secondary fg")
+            )
+        );
         assert!(title.spans[2].style.add_modifier.contains(Modifier::BOLD));
         assert_eq!(title.spans[4].content.as_ref(), "[explorer]");
         assert_eq!(title.spans[4].style.fg, None);
         assert!(!title.spans[4].style.add_modifier.contains(Modifier::DIM));
         assert_eq!(title.spans[6].content.as_ref(), "(gpt-5 high)");
-        assert_eq!(title.spans[6].style.fg, Some(Color::Magenta));
+        assert_eq!(
+            title.spans[6].style.fg,
+            Some(crate::style::opencode_accent_style().fg.expect("accent fg"))
+        );
     }
 
     #[test]
