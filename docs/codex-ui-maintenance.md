@@ -21,6 +21,26 @@ The repository must keep three command contracts stable:
 
 Do not bind the stable `codex-ui` command to a local `target` directory by default.
 
+The stable `codex-ui` launcher executes the sibling `codex-ui-bin` from its installation
+directory. If `codex-ui --version` still reports an older version after a successful local
+build, check the resolved launcher first:
+
+```sh
+type -a codex-ui
+codex-ui --version
+codex-ui-dev --version
+```
+
+Updating `codex-ui-dev` only refreshes the development launcher. To refresh the stable
+local command before the GitHub Release is installed, replace the installed `codex-ui-bin`
+with the release binary while preserving the launcher:
+
+```sh
+install -m 755 codex-rs/target/release/codex ~/.n/bin/codex-ui-bin
+install -m 755 codex-rs/target/release/codex ~/.local/bin/codex-ui-bin
+codex-ui --version
+```
+
 ## UI Porting Rules
 
 When upgrading upstream, do not stop after these surface-level changes:
