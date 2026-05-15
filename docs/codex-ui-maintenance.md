@@ -289,3 +289,24 @@ Release order:
 5. Let GitHub Actions build and publish the release.
 
 Do not document a platform unless the workflow publishes that asset.
+
+## GitHub Actions Policy
+
+`codex-ui` is a downstream UI fork, not the upstream OpenAI monorepo. Do not automatically run
+upstream workflows that depend on OpenAI-only runner groups, expensive Bazel/V8 infrastructure, or
+README assumptions that conflict with this fork's bilingual docs.
+
+Keep these automatic:
+
+- `codex-ui-release` on release tags
+- lightweight checks that work on public GitHub-hosted runners
+
+Keep these manual-only unless the fork gets equivalent infrastructure:
+
+- `sdk`
+- `Bazel`
+- `v8-canary`
+- `rust-ci-full`
+
+If a future upstream sync reintroduces automatic triggers for those workflows, remove the automatic
+`push` / `pull_request` triggers again and leave `workflow_dispatch` available for explicit runs.
