@@ -299,7 +299,8 @@ README assumptions that conflict with this fork's bilingual docs.
 Keep these automatic:
 
 - `codex-ui-release` on release tags
-- lightweight checks that work on public GitHub-hosted runners
+- lightweight checks that work on public GitHub-hosted runners and do not stage upstream release
+  artifacts
 
 Keep these manual-only unless the fork gets equivalent infrastructure:
 
@@ -307,6 +308,7 @@ Keep these manual-only unless the fork gets equivalent infrastructure:
 - `Bazel`
 - `v8-canary`
 - `rust-ci-full`
+- upstream npm package staging in `ci`
 
 If a future upstream sync reintroduces automatic triggers for those workflows, remove the automatic
 `push` / `pull_request` triggers again and leave `workflow_dispatch` available for explicit runs.
