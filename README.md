@@ -23,6 +23,22 @@
 - 上游 tag：`rust-v0.130.0`
 - 发布时间：`2026-05-08`
 
+## 给 AI 的升级入口
+
+下次上游发布新版本时，可以直接把这句话交给 AI：
+
+```text
+进入这个仓库，按 docs/codex-ui-maintenance.md 的 Standard Upgrade Procedure，
+把 codex-ui 升级到最新 openai/codex Rust 稳定 tag。不要只换主题，
+必须保留上游 core/API/行为，并把 codex-ui 的高可见 TUI 消费层样式迁移到新结构上。
+本地必须验证 codex-ui-dev --version 和 codex-ui --version，远程必须等 GitHub Release
+能通过 gh release view 查到完整 assets 后才算发布完成。
+```
+
+更完整的可复制提示词见：
+
+- [docs/codex-ui-ai-upgrade-prompt.md](./docs/codex-ui-ai-upgrade-prompt.md)
+
 ## 仓库定位
 
 `codex-ui` 的维护边界是：
