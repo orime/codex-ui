@@ -87,6 +87,17 @@ Do not treat "theme file compiles" as sufficient. Visible consumer screens such 
 approval flows, update prompts, selection lists, history cells, plugin views, and footer/status
 panels must be reviewed as part of the port.
 
+For upstream version upgrades, follow `docs/codex-ui-maintenance.md` as the source of truth. In
+particular:
+
+- confirm the upstream `rust-vX.Y.Z` tag exists before starting
+- keep upstream core/API/behavior current, then port the `codex-ui` UI layer onto the new structure
+- verify `codex-ui-dev --version` and `codex-ui --version` separately
+- remember that stable `codex-ui` executes the installed sibling `codex-ui-bin`; refreshing only
+  `codex-ui-dev` does not upgrade the normal command
+- do not claim a GitHub Release is published until `gh release view` returns the expected assets
+- if a release tag was already pushed, fix forward with `vX.Y.Z-ui.2` instead of rewriting the tag
+
 ## TUI code conventions
 
 - Use concise styling helpers from ratatui’s Stylize trait.
