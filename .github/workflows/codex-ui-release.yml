@@ -1,0 +1,95 @@
+name: codex-ui-release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+
+    env:
+      CARGO_PROFILE_RELEASE_LTO: thin
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.93.0
+          targets: ${{ matrix.target }}
+
+      - name: Install Rust target
+        run: rustup target add --toolchain 1.93.0 ${{ matrix.target }}
+
+      - name: Restore cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs
+
+      - name: Build codex binary
+        working-directory: codex-rs
+        run: cargo build --target ${{ matrix.target }} --release --bin codex
+
+      - name: Package release asset
+        run: ./scripts/package-codex-ui-release.sh ${{ matrix.target }} dist
+
+      - name: Verify packaged launcher binding
+        run: |
+          tmp_dir="$(mktemp -d)"
+          tar -xzf "dist/codex-ui-${{ matrix.target }}.tar.gz" -C "$tmp_dir"
+          test -f "$tmp_dir/codex-ui"
+          test -f "$tmp_dir/codex-ui-bin"
+          test -f "$tmp_dir/opencode-matrix.tmTheme"
+          grep -F 'tui.theme="opencode-matrix"' "$tmp_dir/codex-ui"
+
+      - name: Upload packaged asset
+        uses: actions/upload-artifact@v7
+        with:
+          name: codex-ui-${{ matrix.target }}
+          path: |
+            dist/codex-ui-${{ matrix.target }}.tar.gz
+            dist/codex-ui-${{ matrix.target }}.sha256
+
+  release:
+    name: Publish Release
+    runs-on: ubuntu-24.04
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+
+      - name: Flatten release assets
+        run: |
+          mkdir -p dist
+          find release-assets -maxdepth 2 -type f -exec cp {} dist/ \;
+          cp scripts/install-codex-ui.sh dist/install-codex-ui.sh
+          chmod 0755 dist/install-codex-ui.sh
+          ls -lah dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          generate_release_notes: true

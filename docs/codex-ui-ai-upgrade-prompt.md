@@ -33,6 +33,8 @@ Use this prompt when asking an AI agent to upgrade `codex-ui` after a new upstre
 - 稳定命令 codex-ui、开发命令 codex-ui-dev、官方命令 codex 三者不要混用。
 - codex-ui wrapper 实际执行安装目录里的 codex-ui-bin；只更新 codex-ui-dev 不代表
   codex-ui 已升级。
+- 不要直接合并旧 Dependabot PR。先检查它的实际版本变更，只把必要变更窄幅应用到
+  当前 main，并保留 codex-ui 的 fork 专用 CI 策略。
 - 如果 release tag 已经推过，不要默认改写远程 tag；用 vX.Y.Z-ui.2 修正。
 
 本地验收：
