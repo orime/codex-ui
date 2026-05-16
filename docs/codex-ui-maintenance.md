@@ -312,3 +312,22 @@ Keep these manual-only unless the fork gets equivalent infrastructure:
 
 If a future upstream sync reintroduces automatic triggers for those workflows, remove the automatic
 `push` / `pull_request` triggers again and leave `workflow_dispatch` available for explicit runs.
+
+## Dependabot PR Policy
+
+Open Dependabot PRs may have been created against an older upstream-shaped `main`. Do not treat
+those branches as the source of truth for a `codex-ui` upgrade.
+
+When a Dependabot PR is useful:
+
+1. Inspect the actual dependency or action version change.
+2. Apply that narrow change onto the current `main`.
+3. Keep the fork-specific CI policy above intact.
+4. Close or leave the old PR based on whether it is now superseded.
+
+Do not directly merge a stale Dependabot PR if doing so would reintroduce deleted Dependabot config,
+upstream-only CI triggers, upstream README assumptions, or unrelated Rust dependency changes.
+
+Rust toolchain and Cargo dependency bumps are separate maintenance work. Do not mix them into an
+upstream Codex version upgrade unless they are required by the target upstream tag or by a concrete
+build failure.
