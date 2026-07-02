@@ -103,8 +103,8 @@ use url::Url;
 
 mod table_key_value;
 
-const TABLE_COLUMN_GAP: usize = 3;
-const TABLE_COLUMN_SEPARATOR: &str = " │ ";
+const TABLE_COLUMN_GAP: usize = 1;
+const TABLE_COLUMN_SEPARATOR: &str = "│";
 const TABLE_CELL_PADDING: usize = 1;
 const TABLE_HEADER_SEPARATOR_CHAR: char = '━';
 const TABLE_BODY_SEPARATOR_CHAR: char = '─';
@@ -1211,7 +1211,15 @@ where
             };
         }
 
-        let mut out = Vec::with_capacity(2 + rows.len() * 2);
+        let mut out = Vec::with_capacity(4 + rows.len() * 2);
+        out.push(Self::render_table_border(
+            &column_widths,
+            TABLE_BODY_SEPARATOR_CHAR,
+            '┌',
+            '┬',
+            '┐',
+            separator_style,
+        ));
         out.extend(self.render_table_row(
             &header,
             &column_widths,
@@ -1238,6 +1246,14 @@ where
                 ));
             }
         }
+        out.push(Self::render_table_border(
+            &column_widths,
+            TABLE_BODY_SEPARATOR_CHAR,
+            '└',
+            '┴',
+            '┘',
+            separator_style,
+        ));
         RenderedTableLines {
             table_lines: out,
             table_lines_prewrapped: true,
@@ -1256,6 +1272,7 @@ where
             let prefix_width =
                 Self::spans_display_width(&self.prefix_spans(self.pending_marker_line));
             let reserved = prefix_width
+                + 2
                 + (column_count.saturating_sub(1) * TABLE_COLUMN_GAP)
                 + (column_count * TABLE_CELL_PADDING * 2);
             wrap_width.saturating_sub(reserved)
@@ -1464,17 +1481,32 @@ where
         separator_char: char,
         style: Style,
     ) -> HyperlinkLine {
+        match separator_char {
+            TABLE_HEADER_SEPARATOR_CHAR => {
+                Self::render_table_border(column_widths, separator_char, '┝', '┿', '┥', style)
+            }
+            TABLE_BODY_SEPARATOR_CHAR => {
+                Self::render_table_border(column_widths, separator_char, '├', '┼', '┤', style)
+            }
+            _ => Self::render_table_border(column_widths, separator_char, ' ', ' ', ' ', style),
+        }
+    }
+
+    fn render_table_border(
+        column_widths: &[usize],
+        separator_char: char,
+        left: char,
+        join: char,
+        right: char,
+        style: Style,
+    ) -> HyperlinkLine {
         let segment_char = separator_char.to_string();
-        let joiner = match separator_char {
-            TABLE_HEADER_SEPARATOR_CHAR => "━┿━",
-            TABLE_BODY_SEPARATOR_CHAR => "─┼─",
-            _ => "   ",
-        };
         let text = column_widths
             .iter()
             .map(|width| segment_char.repeat(*width + (TABLE_CELL_PADDING * 2)))
             .collect::<Vec<_>>()
-            .join(joiner);
+            .join(&join.to_string());
+        let text = format!("{left}{text}{right}");
         HyperlinkLine::new(Line::from(Span::styled(text, style)))
     }
 
@@ -1493,22 +1525,11 @@ where
         let row_height = wrapped_cells.iter().map(Vec::len).max().unwrap_or(1);
 
         let mut out = Vec::with_capacity(row_height);
+        let separator_style = table_separator_style();
         for row_line in 0..row_height {
-            let Some(last_visible_column) = wrapped_cells.iter().rposition(|lines| {
-                lines
-                    .get(row_line)
-                    .is_some_and(|line| Self::line_display_width(&line.line) > 0)
-            }) else {
-                out.push(HyperlinkLine::new(Line::default().style(row_style)));
-                continue;
-            };
             let mut spans = Vec::new();
-            let separator_style = table_separator_style();
-            for (column, width) in column_widths
-                .iter()
-                .enumerate()
-                .take(last_visible_column + 1)
-            {
+            spans.push(Span::styled(TABLE_COLUMN_SEPARATOR, separator_style));
+            for (column, width) in column_widths.iter().enumerate() {
                 spans.push(Span::raw(" ".repeat(TABLE_CELL_PADDING)));
                 let mut line = wrapped_cells[column]
                     .get(row_line)
@@ -1525,23 +1546,15 @@ where
                     spans.push(Span::raw(" ".repeat(left_padding)));
                 }
                 spans.append(&mut line.line.spans);
-                let is_last_column = column == last_visible_column;
-                if right_padding > 0 && !is_last_column {
+                if right_padding > 0 {
                     spans.push(Span::raw(" ".repeat(right_padding)));
                 }
-                if !is_last_column {
-                    spans.push(Span::raw(" ".repeat(TABLE_CELL_PADDING)));
-                    spans.push(Span::styled(TABLE_COLUMN_SEPARATOR, separator_style));
-                }
+                spans.push(Span::raw(" ".repeat(TABLE_CELL_PADDING)));
+                spans.push(Span::styled(TABLE_COLUMN_SEPARATOR, separator_style));
             }
             let mut out_line = HyperlinkLine::new(Line::from(spans).style(row_style));
-            let mut column_start = 0usize;
-            for (column, width) in column_widths
-                .iter()
-                .enumerate()
-                .take(last_visible_column + 1)
-            {
-                column_start += TABLE_CELL_PADDING;
+            let mut column_start = 1usize;
+            for (column, width) in column_widths.iter().enumerate() {
                 if let Some(line) = wrapped_cells[column].get(row_line) {
                     let remaining = width.saturating_sub(Self::line_display_width(&line.line));
                     let left_padding = match alignments[column] {
@@ -1552,15 +1565,12 @@ where
                     out_line
                         .hyperlinks
                         .extend(line.hyperlinks.iter().cloned().map(|mut link| {
-                            link.columns = link.columns.start + column_start + left_padding
-                                ..link.columns.end + column_start + left_padding;
+                            let offset = column_start + TABLE_CELL_PADDING + left_padding;
+                            link.columns = link.columns.start + offset..link.columns.end + offset;
                             link
                         }));
                 }
-                column_start += *width + TABLE_CELL_PADDING;
-                if column < last_visible_column {
-                    column_start += TABLE_COLUMN_GAP;
-                }
+                column_start += (TABLE_CELL_PADDING * 2) + *width + TABLE_COLUMN_GAP;
             }
             out.push(out_line);
         }

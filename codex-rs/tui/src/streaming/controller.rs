@@ -1498,7 +1498,7 @@ mod tests {
         assert!(
             streamed
                 .iter()
-                .any(|line| line.contains(" Col A  │  Col B  │  Col C")),
+                .any(|line| line.contains("│ Col A │ Col B │ Col C │")),
             "expected converted no-outer table header in streamed output: {streamed:?}"
         );
     }

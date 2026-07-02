@@ -410,7 +410,11 @@ mod tests {
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
         assert!(rendered.iter().any(|line| line.contains('━')));
-        assert!(rendered.iter().any(|line| line.contains(" 1    │  2")));
+        assert!(
+            rendered
+                .iter()
+                .any(|line| line.contains("│ 1") && line.contains("│ 2"))
+        );
     }
 
     #[test]
@@ -423,7 +427,7 @@ mod tests {
         assert!(
             rendered
                 .iter()
-                .any(|line| line.contains(" Col A  │  Col B  │  Col C"))
+                .any(|line| line.contains("│ Col A │ Col B │ Col C │"))
         );
         assert!(
             !rendered

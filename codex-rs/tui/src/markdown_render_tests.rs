@@ -1572,29 +1572,31 @@ fn table_renders_app_style_rows_with_themed_bold_header() {
     assert_eq!(
         lines,
         vec![
-            " A    │  B".to_string(),
-            "━━━━━━┿━━━━━━".to_string(),
-            " 1    │  2".to_string(),
+            "┌─────┬─────┐".to_string(),
+            "│ A   │ B   │".to_string(),
+            "┝━━━━━┿━━━━━┥".to_string(),
+            "│ 1   │ 2   │".to_string(),
+            "└─────┴─────┘".to_string(),
         ]
     );
     assert!(
-        text.lines[0]
+        text.lines[1]
             .style
             .add_modifier
             .contains(Modifier::BOLD)
     );
     assert!(
-        text.lines[0].style.fg.is_some(),
+        text.lines[1].style.fg.is_some(),
         "expected the syntax theme to provide a table header accent"
     );
     assert!(
-        text.lines[1].spans[0]
+        text.lines[2].spans[0]
             .style
             .add_modifier
             .contains(Modifier::DIM)
     );
     assert!(
-        !text.lines[2]
+        !text.lines[3]
             .style
             .add_modifier
             .contains(Modifier::BOLD)
@@ -1649,8 +1651,8 @@ fn table_alignment_respects_markers() {
         .map(|line| line.spans.iter().map(|span| span.content.clone()).collect())
         .collect();
 
-    assert_eq!(lines[0], " Left  │  Center  │  Right");
-    assert_eq!(lines[2], " a     │    b     │      c");
+    assert_eq!(lines[1], "│ Left │ Center │ Right │");
+    assert_eq!(lines[3], "│ a    │   b    │     c │");
 }
 
 #[test]
@@ -1677,7 +1679,7 @@ fn table_separates_logical_rows_after_wrapped_content() {
             ((line.contains('━') || line.contains('─'))
                 && line
                     .chars()
-                    .all(|ch| matches!(ch, '━' | '─' | '┿' | '┼' | ' ')))
+                    .all(|ch| matches!(ch, '━' | '─' | '┌' | '┬' | '┐' | '┝' | '┿' | '┥' | '├' | '┼' | '┤' | '└' | '┴' | '┘' | ' ')))
             .then_some(idx)
         })
         .collect();
@@ -1685,13 +1687,9 @@ fn table_separates_logical_rows_after_wrapped_content() {
         .iter()
         .position(|line| line.contains("logging output"))
         .expect("expected final wrapped line");
-    assert_eq!(separator_indices.len(), 2);
-    assert!(separator_indices[1] > wrapped_row_end);
-    assert!(
-        !lines
-            .last()
-            .is_some_and(|line| line.contains('━') || line.contains('─'))
-    );
+    assert_eq!(separator_indices.len(), 4);
+    assert!(separator_indices.iter().any(|idx| *idx > wrapped_row_end));
+    assert!(lines.last().is_some_and(|line| line.contains('└')));
 }
 
 #[test]
@@ -1775,7 +1773,7 @@ fn table_inside_blockquote_has_quote_prefix() {
         .collect();
 
     assert!(lines.iter().all(|line| line.starts_with("> ")));
-    assert!(lines.iter().any(|line| line.contains("━━━━━━┿━━━━━━")));
+    assert!(lines.iter().any(|line| line.contains("┝━━━━━┿━━━━━┥")));
 }
 
 #[test]
