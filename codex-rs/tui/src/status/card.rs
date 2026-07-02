@@ -4,6 +4,8 @@ use crate::history_cell::PlainHistoryCell;
 use crate::history_cell::plain_lines;
 use crate::history_cell::with_border_with_inner_width;
 use crate::legacy_core::config::Config;
+use crate::style::opencode_markdown_link;
+use crate::style::opencode_text_muted;
 use crate::token_usage::TokenUsage;
 use crate::token_usage::TokenUsageInfo;
 use crate::version::CODEX_CLI_VERSION;
@@ -778,14 +780,19 @@ impl HistoryCell for StatusHistoryCell {
         let formatter = FieldFormatter::from_labels(labels.iter().map(String::as_str));
         let value_width = formatter.value_width(available_inner_width);
 
+        let usage_note_style = Style::default().fg(opencode_text_muted());
+        let usage_link_style = Style::default()
+            .fg(opencode_markdown_link())
+            .add_modifier(Modifier::UNDERLINED);
         let note_first_line = Line::from(vec![
-            Span::from("Visit ").cyan(),
-            CHATGPT_USAGE_URL.cyan().underlined(),
-            Span::from(" for up-to-date").cyan(),
+            Span::styled("Visit ", usage_note_style),
+            Span::styled(CHATGPT_USAGE_URL, usage_link_style),
+            Span::styled(" for up-to-date", usage_note_style),
         ]);
-        let note_second_line = Line::from(vec![
-            Span::from("information on rate limits and credits").cyan(),
-        ]);
+        let note_second_line = Line::from(vec![Span::styled(
+            "information on rate limits and credits",
+            usage_note_style,
+        )]);
         let note_lines = adaptive_wrap_lines(
             [note_first_line, note_second_line],
             RtOptions::new(available_inner_width),

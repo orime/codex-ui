@@ -65,18 +65,40 @@ High-visibility UI should prefer semantic `opencode_*` helpers from `codex-rs/tu
 
 Avoid letting scattered raw color helpers such as `.cyan()`, `.green()`, `.red()`, and `.magenta()` become the dominant styling layer again.
 
+## Markdown Regression Guard
+
+The 0.142.5 upgrade exposed a severe failure mode: code blocks and syntax highlighting can keep the
+`codex-ui` look while normal assistant Markdown prose silently falls back to upstream blue/white
+defaults. This is a broken upgrade, even if the binary builds and the release workflow succeeds.
+
+Every upstream upgrade must explicitly review `codex-rs/tui/src/markdown_render.rs`:
+
+- plain text must start from `opencode_markdown_text()`, not the terminal default foreground
+- headings, emphasis, strong text, inline code, ordered/unordered list markers, blockquotes, tables,
+  link text, and link destinations must use semantic `opencode_*` styles
+- link text and rendered link destinations should remain separately styled when upstream supports
+  terminal hyperlinks or local-file target rewriting
+- when upstream rewrites Markdown rendering, keep the new upstream behavior and port `codex-ui`
+  styling onto it; do not blindly copy an older fork file over the new implementation
+- visual smoke tests must include ordinary assistant prose, lists, links, inline code, code blocks,
+  and a local file link
+
+Tests may keep upstream/default colors under `#[cfg(test)]` when that avoids noisy snapshot churn,
+but non-test runtime styling must remain `codex-ui` themed.
+
 ## Upgrade Checklist
 
 1. Align with the upstream stable release tag.
 2. Port theme infrastructure and visible UI consumers.
-3. Fix README, installer, workflow, and release wording together.
-4. Install the local release binary as `codex-ui-bin` and smoke test `codex-ui`.
-5. Run `cargo check -p codex-tui`.
-6. Run `cargo test -p codex-tui`.
-7. Run `just fix -p codex-tui`.
-8. Run `just fmt`.
-9. Merge to `main`.
-10. Tag and push the `v<upstream-version>-ui.N` release.
+3. Review Markdown transcript rendering against the Markdown Regression Guard.
+4. Fix README, installer, workflow, and release wording together.
+5. Install the local release binary as `codex-ui-bin` and smoke test `codex-ui`.
+6. Run `cargo check -p codex-tui`.
+7. Run `cargo test -p codex-tui`.
+8. Run `just fix -p codex-tui`.
+9. Run `just fmt`.
+10. Merge to `main`.
+11. Tag and push the `v<upstream-version>-ui.N` release.
 
 ## Standard Upgrade Procedure
 
@@ -130,6 +152,8 @@ The required porting surface includes:
 
 - `codex-rs/tui/src/style.rs` semantic `opencode_*` helpers
 - theme files under `themes/`
+- `codex-rs/tui/src/markdown_render.rs` plain prose, links, lists, quotes, inline code, tables, and
+  local-file link styling
 - onboarding / auth / trust directory
 - update prompt / model migration
 - selection list / list selection popup / resume picker / oss selection

@@ -140,6 +140,15 @@ See `codex-rs/tui/styles.md`.
 When maintaining the `codex-ui` fork, high-visibility TUI surfaces should prefer semantic `opencode_*`
 helpers from `codex-rs/tui/src/style.rs` over scattered raw color helpers.
 
+The most important upgrade invariant: `codex-ui` is not allowed to regress Markdown transcript
+styling back to upstream Codex defaults. When upstream changes `codex-rs/tui/src/markdown_render.rs`,
+port the fork's semantic Markdown styles onto the new upstream structure instead of keeping raw
+defaults such as `.cyan()`, `.light_blue()`, default foreground text, or a single generic link style.
+Plain assistant text, headings, inline code, list markers, link text, link destinations, blockquotes,
+tables, and local-file link rendering must all be checked. Code syntax highlighting can still look
+correct while normal Markdown prose has already regressed, so do not use code block appearance as the
+only visual smoke test.
+
 Do not treat "theme file compiles" as sufficient. Visible consumer screens such as onboarding,
 approval flows, update prompts, selection lists, history cells, plugin views, and footer/status
 panels must be reviewed as part of the port.
@@ -149,9 +158,9 @@ particular:
 
 - confirm the upstream `rust-vX.Y.Z` tag exists before starting
 - keep upstream core/API/behavior current, then port the `codex-ui` UI layer onto the new structure
-- verify `codex-ui-dev --version` and `codex-ui --version` separately
+- verify `codex-ui --version` after replacing the installed `codex-ui-bin`
 - remember that stable `codex-ui` executes the installed sibling `codex-ui-bin`; refreshing only
-  `codex-ui-dev` does not upgrade the normal command
+  a development binary does not upgrade the normal command
 - do not claim a GitHub Release is published until `gh release view` returns the expected assets
 - if a release tag was already pushed, fix forward with `vX.Y.Z-ui.2` instead of rewriting the tag
 

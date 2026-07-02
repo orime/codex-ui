@@ -43,6 +43,30 @@ use crate::markdown_text_merge::DecodedTextMerge;
 use crate::render::highlight::foreground_style_for_scopes;
 use crate::render::highlight::highlight_code_to_lines;
 use crate::render::line_utils::line_to_static;
+#[cfg(not(test))]
+use crate::style::opencode_accent;
+#[cfg(not(test))]
+use crate::style::opencode_inline_code_background;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_blockquote;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_emphasis;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_heading;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_link;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_link_text;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_list_enumeration;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_list_item;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_strong;
+#[cfg(not(test))]
+use crate::style::opencode_markdown_text;
+#[cfg(not(test))]
+use crate::style::opencode_text_emphasis;
 use crate::style::table_separator_style;
 use crate::terminal_hyperlinks::HyperlinkLine;
 use crate::terminal_hyperlinks::annotate_web_urls_in_line;
@@ -85,6 +109,7 @@ const TABLE_HEADER_SEPARATOR_CHAR: char = '━';
 const TABLE_BODY_SEPARATOR_CHAR: char = '─';
 
 struct MarkdownStyles {
+    text: Style,
     h1: Style,
     h2: Style,
     h3: Style,
@@ -97,27 +122,70 @@ struct MarkdownStyles {
     strikethrough: Style,
     ordered_list_marker: Style,
     unordered_list_marker: Style,
-    link: Style,
+    link_text: Style,
+    link_destination: Style,
     blockquote: Style,
 }
 
 impl Default for MarkdownStyles {
     fn default() -> Self {
-        Self {
-            h1: Style::new().bold().underlined(),
-            h2: Style::new().bold(),
-            h3: Style::new().bold().italic(),
-            h4: Style::new().italic(),
-            h5: Style::new().italic(),
-            h6: Style::new().italic(),
-            code: Style::new().cyan(),
-            emphasis: Style::new().italic(),
-            strong: Style::new().bold(),
-            strikethrough: Style::new().crossed_out(),
-            ordered_list_marker: Style::new().light_blue(),
-            unordered_list_marker: Style::new(),
-            link: Style::new().cyan().underlined(),
-            blockquote: Style::new().green(),
+        #[cfg(test)]
+        {
+            Self {
+                text: Style::default(),
+                h1: Style::new().bold().underlined(),
+                h2: Style::new().bold(),
+                h3: Style::new().bold().italic(),
+                h4: Style::new().italic(),
+                h5: Style::new().italic(),
+                h6: Style::new().italic(),
+                code: Style::new().cyan(),
+                emphasis: Style::new().italic(),
+                strong: Style::new().bold(),
+                strikethrough: Style::new().crossed_out(),
+                ordered_list_marker: Style::new().light_blue(),
+                unordered_list_marker: Style::new(),
+                link_text: Style::new(),
+                link_destination: Style::new().cyan().underlined(),
+                blockquote: Style::new().green(),
+            }
+        }
+
+        #[cfg(not(test))]
+        {
+            let text = Style::default().fg(opencode_markdown_text());
+            let heading = Style::default()
+                .fg(opencode_markdown_heading())
+                .add_modifier(ratatui::style::Modifier::BOLD);
+            let heading_level_two = Style::default()
+                .fg(opencode_accent())
+                .add_modifier(ratatui::style::Modifier::BOLD);
+            Self {
+                text,
+                h1: heading,
+                h2: heading_level_two,
+                h3: heading,
+                h4: heading,
+                h5: heading,
+                h6: heading,
+                code: Style::default()
+                    .fg(opencode_text_emphasis())
+                    .bg(opencode_inline_code_background()),
+                emphasis: Style::default().fg(opencode_markdown_emphasis()).italic(),
+                strong: Style::default()
+                    .fg(opencode_markdown_strong())
+                    .add_modifier(ratatui::style::Modifier::BOLD),
+                strikethrough: text.crossed_out(),
+                ordered_list_marker: Style::default().fg(opencode_markdown_list_enumeration()),
+                unordered_list_marker: Style::default().fg(opencode_markdown_list_item()),
+                link_text: Style::default()
+                    .fg(opencode_markdown_link_text())
+                    .add_modifier(ratatui::style::Modifier::UNDERLINED),
+                link_destination: Style::default()
+                    .fg(opencode_markdown_link())
+                    .add_modifier(ratatui::style::Modifier::UNDERLINED),
+                blockquote: Style::default().fg(opencode_markdown_blockquote()),
+            }
         }
     }
 }
@@ -666,7 +734,7 @@ where
                 self.push_line(Line::default());
             }
             let content = line.to_string();
-            let style = self.inline_styles.last().copied().unwrap_or_default();
+            let style = self.current_inline_style();
             self.push_text_spans(&content, style);
         }
         self.needs_newline = false;
@@ -696,7 +764,7 @@ where
         }
         self.line_ends_with_local_link_target = false;
         if self.in_table_cell() {
-            let style = self.inline_styles.last().copied().unwrap_or_default();
+            let style = self.current_inline_style();
             for (i, line) in html.lines().enumerate() {
                 if i > 0 {
                     self.push_table_cell_hard_break();
@@ -717,7 +785,7 @@ where
             if i > 0 {
                 self.push_line(Line::default());
             }
-            let style = self.inline_styles.last().copied().unwrap_or_default();
+            let style = self.current_inline_style();
             self.push_span(Span::styled(line.to_string(), style));
         }
         self.needs_newline = !inline;
@@ -740,7 +808,7 @@ where
             return;
         }
         if self.in_table_cell() {
-            let style = self.inline_styles.last().copied().unwrap_or_default();
+            let style = self.current_inline_style();
             self.push_span_to_table_cell(Span::styled(" ".to_string(), style));
             return;
         }
@@ -1010,7 +1078,7 @@ where
     }
 
     fn push_text_to_table_cell(&mut self, text: &str) {
-        let style = self.inline_styles.last().copied().unwrap_or_default();
+        let style = self.current_inline_style();
         for (i, line) in text.lines().enumerate() {
             if i > 0 {
                 self.push_table_cell_hard_break();
@@ -1724,13 +1792,20 @@ where
     }
 
     fn push_inline_style(&mut self, style: Style) {
-        let current = self.inline_styles.last().copied().unwrap_or_default();
+        let current = self.current_inline_style();
         let merged = current.patch(style);
         self.inline_styles.push(merged);
     }
 
     fn pop_inline_style(&mut self) {
         self.inline_styles.pop();
+    }
+
+    fn current_inline_style(&self) -> Style {
+        self.inline_styles
+            .last()
+            .copied()
+            .unwrap_or(self.styles.text)
     }
 
     fn push_link(&mut self, dest_url: String) {
@@ -1744,9 +1819,11 @@ where
             },
             destination: dest_url,
         });
+        self.push_inline_style(self.styles.link_text);
     }
 
     fn pop_link(&mut self) {
+        self.pop_inline_style();
         if let Some(link) = self.link.take() {
             if link.show_destination {
                 // Link destinations are rendered as " (url)" suffixes. When parsing table cells,
@@ -1756,7 +1833,7 @@ where
                     self.push_span_to_table_cell(" (".into());
                     let mut destination = HyperlinkLine::new(Line::default());
                     destination.push_span(
-                        Span::styled(link.destination.clone(), self.styles.link),
+                        Span::styled(link.destination.clone(), self.styles.link_destination),
                         web_destination(&link.destination).as_deref(),
                     );
                     if let Some(table_state) = self.table_state.as_mut()
@@ -1769,7 +1846,7 @@ where
                     self.push_span(" (".into());
                     let mut destination = HyperlinkLine::new(Line::default());
                     destination.push_span(
-                        Span::styled(link.destination.clone(), self.styles.link),
+                        Span::styled(link.destination.clone(), self.styles.link_destination),
                         web_destination(&link.destination).as_deref(),
                     );
                     self.push_annotated(destination);
@@ -1778,12 +1855,7 @@ where
             } else if let Some(local_target_display) = link.local_target_display {
                 // Local file links are rendered as code-like path text so the transcript shows the
                 // resolved target instead of arbitrary caller-provided label text.
-                let style = self
-                    .inline_styles
-                    .last()
-                    .copied()
-                    .unwrap_or_default()
-                    .patch(self.styles.code);
+                let style = self.current_inline_style().patch(self.styles.code);
                 let span = Span::styled(local_target_display, style);
                 if self.in_table_cell() {
                     self.push_span_to_table_cell(span);
