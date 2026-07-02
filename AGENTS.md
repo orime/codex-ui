@@ -149,6 +149,13 @@ tables, and local-file link rendering must all be checked. Code syntax highlight
 correct while normal Markdown prose has already regressed, so do not use code block appearance as the
 only visual smoke test.
 
+Table rendering must be checked in both final and streaming states. A particularly bad regression
+is an active `` ```md ``/`` ```markdown `` fence that already contains a confirmed table
+(header + delimiter) but has not received its closing fence yet: it must render as a table during
+streaming, not as a raw code block that later jumps into table layout. Include cell inline Markdown
+(`**strong**`, `*emphasis*`, `` `code` ``, `~~strike~~`) in the smoke test so table cells do not
+silently show raw Markdown syntax.
+
 Do not treat "theme file compiles" as sufficient. Visible consumer screens such as onboarding,
 approval flows, update prompts, selection lists, history cells, plugin views, and footer/status
 panels must be reviewed as part of the port.

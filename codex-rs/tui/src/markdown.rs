@@ -283,9 +283,18 @@ fn unwrap_markdown_fences<'a>(markdown_source: &'a str) -> Cow<'a, str> {
         match active {
             ActiveFence::Passthrough(_) => {}
             ActiveFence::MarkdownCandidate(data) => {
-                push_source_range(data.opening_range);
-                for range in data.content_ranges {
-                    push_source_range(range);
+                if markdown_fence_contains_table(
+                    &content_from_ranges(markdown_source, &data.content_ranges),
+                    data.fence.is_blockquoted,
+                ) {
+                    for range in data.content_ranges {
+                        push_source_range(range);
+                    }
+                } else {
+                    push_source_range(data.opening_range);
+                    for range in data.content_ranges {
+                        push_source_range(range);
+                    }
                 }
             }
         }
@@ -401,7 +410,7 @@ mod tests {
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
         assert!(rendered.iter().any(|line| line.contains('━')));
-        assert!(rendered.iter().any(|line| line.contains(" 1      2")));
+        assert!(rendered.iter().any(|line| line.contains(" 1    │  2")));
     }
 
     #[test]
@@ -414,7 +423,7 @@ mod tests {
         assert!(
             rendered
                 .iter()
-                .any(|line| line.contains(" Col A    Col B    Col C"))
+                .any(|line| line.contains(" Col A  │  Col B  │  Col C"))
         );
         assert!(
             !rendered
@@ -484,6 +493,34 @@ mod tests {
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
         assert_eq!(rendered, vec!["**bold**".to_string()]);
+    }
+
+    #[test]
+    fn append_markdown_agent_unwraps_unclosed_markdown_fence_after_table_is_confirmed() {
+        let src = "```markdown\n| 功能 | 语法 | 说明 |\n| --- | --- | --- |\n| 加粗 | **文本** | 强调重点 |\n";
+        let mut out = Vec::new();
+        append_markdown_agent(src, /*width*/ None, &mut out);
+        let rendered = lines_to_strings(&out);
+
+        assert!(rendered.iter().any(|line| line.contains('━')));
+        assert!(
+            rendered
+                .iter()
+                .any(|line| line.contains(" 加粗") && line.contains("文本"))
+        );
+        assert!(
+            !rendered
+                .iter()
+                .any(|line| line.contains("```") || line.contains("**文本**")),
+            "confirmed table inside an active markdown fence should render as a table: {rendered:?}",
+        );
+    }
+
+    #[test]
+    fn append_markdown_agent_keeps_unclosed_markdown_fence_until_table_is_confirmed() {
+        let src = "```markdown\n| A | B |\nnot a delimiter yet\n";
+        let normalized = unwrap_markdown_fences(src);
+        assert_eq!(normalized, src);
     }
 
     #[test]

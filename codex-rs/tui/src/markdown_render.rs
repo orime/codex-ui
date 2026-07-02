@@ -103,7 +103,8 @@ use url::Url;
 
 mod table_key_value;
 
-const TABLE_COLUMN_GAP: usize = 2;
+const TABLE_COLUMN_GAP: usize = 3;
+const TABLE_COLUMN_SEPARATOR: &str = " │ ";
 const TABLE_CELL_PADDING: usize = 1;
 const TABLE_HEADER_SEPARATOR_CHAR: char = '━';
 const TABLE_BODY_SEPARATOR_CHAR: char = '─';
@@ -1464,12 +1465,16 @@ where
         style: Style,
     ) -> HyperlinkLine {
         let segment_char = separator_char.to_string();
-        let gap = " ".repeat(TABLE_COLUMN_GAP);
+        let joiner = match separator_char {
+            TABLE_HEADER_SEPARATOR_CHAR => "━┿━",
+            TABLE_BODY_SEPARATOR_CHAR => "─┼─",
+            _ => "   ",
+        };
         let text = column_widths
             .iter()
             .map(|width| segment_char.repeat(*width + (TABLE_CELL_PADDING * 2)))
             .collect::<Vec<_>>()
-            .join(&gap);
+            .join(joiner);
         HyperlinkLine::new(Line::from(Span::styled(text, style)))
     }
 
@@ -1498,6 +1503,7 @@ where
                 continue;
             };
             let mut spans = Vec::new();
+            let separator_style = table_separator_style();
             for (column, width) in column_widths
                 .iter()
                 .enumerate()
@@ -1525,9 +1531,7 @@ where
                 }
                 if !is_last_column {
                     spans.push(Span::raw(" ".repeat(TABLE_CELL_PADDING)));
-                }
-                if !is_last_column {
-                    spans.push(Span::raw(" ".repeat(TABLE_COLUMN_GAP)));
+                    spans.push(Span::styled(TABLE_COLUMN_SEPARATOR, separator_style));
                 }
             }
             let mut out_line = HyperlinkLine::new(Line::from(spans).style(row_style));
@@ -1553,7 +1557,10 @@ where
                             link
                         }));
                 }
-                column_start += *width + TABLE_CELL_PADDING + TABLE_COLUMN_GAP;
+                column_start += *width + TABLE_CELL_PADDING;
+                if column < last_visible_column {
+                    column_start += TABLE_COLUMN_GAP;
+                }
             }
             out.push(out_line);
         }

@@ -82,6 +82,12 @@ Every upstream upgrade must explicitly review `codex-rs/tui/src/markdown_render.
   styling onto it; do not blindly copy an older fork file over the new implementation
 - visual smoke tests must include ordinary assistant prose, lists, links, inline code, code blocks,
   and a local file link
+- table smoke tests must cover streaming and final rendering. In particular, an active
+  `` ```md ``/`` ```markdown `` fence whose content already has a table header + delimiter must
+  render as a table before the closing fence arrives. Otherwise users see raw fenced content first,
+  then the transcript jumps when the closing fence turns it into a table.
+- table cell content must parse inline Markdown such as `**strong**`, `*emphasis*`, `` `code` ``,
+  and `~~strike~~`; showing those raw markers inside cells is a regression.
 
 Tests may keep upstream/default colors under `#[cfg(test)]` when that avoids noisy snapshot churn,
 but non-test runtime styling must remain `codex-ui` themed.
@@ -91,14 +97,16 @@ but non-test runtime styling must remain `codex-ui` themed.
 1. Align with the upstream stable release tag.
 2. Port theme infrastructure and visible UI consumers.
 3. Review Markdown transcript rendering against the Markdown Regression Guard.
-4. Fix README, installer, workflow, and release wording together.
-5. Install the local release binary as `codex-ui-bin` and smoke test `codex-ui`.
-6. Run `cargo check -p codex-tui`.
-7. Run `cargo test -p codex-tui`.
-8. Run `just fix -p codex-tui`.
-9. Run `just fmt`.
-10. Merge to `main`.
-11. Tag and push the `v<upstream-version>-ui.N` release.
+4. Verify streaming table behavior, including unclosed `md`/`markdown` fenced tables and inline
+   Markdown inside cells.
+5. Fix README, installer, workflow, and release wording together.
+6. Install the local release binary as `codex-ui-bin` and smoke test `codex-ui`.
+7. Run `cargo check -p codex-tui`.
+8. Run `cargo test -p codex-tui`.
+9. Run `just fix -p codex-tui`.
+10. Run `just fmt`.
+11. Merge to `main`.
+12. Tag and push the `v<upstream-version>-ui.N` release.
 
 ## Standard Upgrade Procedure
 

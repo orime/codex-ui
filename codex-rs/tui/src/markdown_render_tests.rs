@@ -1572,9 +1572,9 @@ fn table_renders_app_style_rows_with_themed_bold_header() {
     assert_eq!(
         lines,
         vec![
-            " A      B".to_string(),
-            "━━━━━  ━━━━━".to_string(),
-            " 1      2".to_string(),
+            " A    │  B".to_string(),
+            "━━━━━━┿━━━━━━".to_string(),
+            " 1    │  2".to_string(),
         ]
     );
     assert!(
@@ -1602,6 +1602,44 @@ fn table_renders_app_style_rows_with_themed_bold_header() {
 }
 
 #[test]
+fn table_cells_render_inline_markdown_styles() {
+    let md = "| 功能 | 语法 | 说明 |\n| --- | --- | --- |\n| 加粗 | **文本** | 强调重点 |\n| 斜体 | *文本* | 轻度强调 |\n| 代码 | `code` | 展示命令或变量 |\n| 删除线 | ~~文本~~ | 表示废弃内容 |\n";
+    let text = render_markdown_text(md);
+    let lines = plain_lines(&text);
+
+    assert!(lines.iter().any(|line| line.contains(" 文本")));
+    assert!(
+        !lines
+            .iter()
+            .any(|line| line.contains("**文本**")
+                || line.contains("*文本*")
+                || line.contains("`code`")
+                || line.contains("~~文本~~")),
+        "table cell markdown syntax should be rendered, not shown literally: {lines:?}",
+    );
+    assert!(text.lines.iter().any(|line| {
+        line.spans
+            .iter()
+            .any(|span| span.content == "文本" && span.style.add_modifier.contains(Modifier::BOLD))
+    }));
+    assert!(text.lines.iter().any(|line| {
+        line.spans
+            .iter()
+            .any(|span| span.content == "文本" && span.style.add_modifier.contains(Modifier::ITALIC))
+    }));
+    assert!(text.lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.content == "文本" && span.style.add_modifier.contains(Modifier::CROSSED_OUT)
+        })
+    }));
+    assert!(text.lines.iter().any(|line| {
+        line.spans
+            .iter()
+            .any(|span| span.content == "code" && span.style.fg.is_some())
+    }));
+}
+
+#[test]
 fn table_alignment_respects_markers() {
     let md = "| Left | Center | Right |\n|:-----|:------:|------:|\n| a | b | c |\n";
     let text = render_markdown_text(md);
@@ -1611,8 +1649,8 @@ fn table_alignment_respects_markers() {
         .map(|line| line.spans.iter().map(|span| span.content.clone()).collect())
         .collect();
 
-    assert_eq!(lines[0], " Left    Center    Right");
-    assert_eq!(lines[2], " a         b           c");
+    assert_eq!(lines[0], " Left  │  Center  │  Right");
+    assert_eq!(lines[2], " a     │    b     │      c");
 }
 
 #[test]
@@ -1637,7 +1675,9 @@ fn table_separates_logical_rows_after_wrapped_content() {
         .enumerate()
         .filter_map(|(idx, line)| {
             ((line.contains('━') || line.contains('─'))
-                && line.chars().all(|ch| matches!(ch, '━' | '─' | ' ')))
+                && line
+                    .chars()
+                    .all(|ch| matches!(ch, '━' | '─' | '┿' | '┼' | ' ')))
             .then_some(idx)
         })
         .collect();
@@ -1735,7 +1775,7 @@ fn table_inside_blockquote_has_quote_prefix() {
         .collect();
 
     assert!(lines.iter().all(|line| line.starts_with("> ")));
-    assert!(lines.iter().any(|line| line.contains("━━━━━  ━━━━━")));
+    assert!(lines.iter().any(|line| line.contains("━━━━━━┿━━━━━━")));
 }
 
 #[test]
