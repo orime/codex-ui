@@ -1224,6 +1224,40 @@ mod tests {
     }
 
     #[test]
+    fn controller_releases_content_after_table_blank_line_before_finalize() {
+        let mut ctrl = stream_controller(Some(80));
+
+        ctrl.push("| Key | Description |\n");
+        ctrl.push("| --- | --- |\n");
+        ctrl.push("| -v | Enable verbose logging |\n");
+        assert_eq!(
+            ctrl.queued_lines(),
+            0,
+            "active table should remain mutable until the terminating blank line"
+        );
+
+        ctrl.push("\n");
+        assert!(
+            ctrl.queued_lines() > 0,
+            "finished table should be released after its terminating blank line"
+        );
+
+        let (_table_cell, _idle) = ctrl.on_commit_tick_batch(usize::MAX);
+        ctrl.push("After table paragraph.\n");
+
+        let (after_cell, _idle) = ctrl.on_commit_tick_batch(usize::MAX);
+        let after_lines = after_cell
+            .map(|cell| lines_to_plain_strings(&cell.transcript_lines(u16::MAX)))
+            .unwrap_or_default();
+        assert!(
+            after_lines
+                .iter()
+                .any(|line| line.contains("After table paragraph.")),
+            "content after a finished table should stream before finalize: {after_lines:?}"
+        );
+    }
+
+    #[test]
     fn controller_holds_blockquoted_table_tail_until_stable() {
         let deltas = vec![
             "> | A | B |\n",

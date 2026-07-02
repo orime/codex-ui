@@ -128,7 +128,6 @@ impl TableHoldbackScanner {
         };
         let is_header = candidate_text.is_some_and(is_table_header_line);
         let is_delimiter = candidate_text.is_some_and(is_table_delimiter_line);
-
         if self.confirmed_table_start.is_none()
             && let Some(previous_line) = self.previous_line
             && previous_line.fence_kind != FenceKind::Other
@@ -138,6 +137,10 @@ impl TableHoldbackScanner {
         {
             self.confirmed_table_start = Some(previous_line.source_start);
             self.pending_header_start = None;
+        }
+
+        if self.confirmed_table_start.is_some() && line.trim().is_empty() {
+            self.confirmed_table_start = None;
         }
 
         if self.confirmed_table_start.is_none() && !line.trim().is_empty() {
@@ -169,74 +172,11 @@ fn table_candidate_text(line: &str) -> Option<&str> {
     parse_table_segments(stripped).map(|_| stripped)
 }
 
-/// A source line annotated with whether it falls inside a fenced code block.
-#[cfg(test)]
-struct ParsedLine<'a> {
-    text: &'a str,
-    fence_context: FenceKind,
-    source_start: usize,
-}
-
-/// Parse source into lines tagged with fenced-code context for table scanning.
-#[cfg(test)]
-fn parse_lines_with_fence_state(source: &str) -> Vec<ParsedLine<'_>> {
-    let mut tracker = FenceTracker::new();
-    let mut lines = Vec::new();
-    let mut source_start = 0usize;
-
-    for raw_line in source.split('\n') {
-        lines.push(ParsedLine {
-            text: raw_line,
-            fence_context: tracker.kind(),
-            source_start,
-        });
-
-        tracker.advance(raw_line);
-        source_start = source_start
-            .saturating_add(raw_line.len())
-            .saturating_add(1);
-    }
-
-    lines
-}
-
 /// Scan `source` for pipe-table patterns outside of non-markdown fenced code
 /// blocks.
 #[cfg(test)]
 pub(super) fn table_holdback_state(source: &str) -> TableHoldbackState {
-    let lines = parse_lines_with_fence_state(source);
-    for pair in lines.windows(2) {
-        let [header_line, delimiter_line] = pair else {
-            continue;
-        };
-        if header_line.fence_context == FenceKind::Other
-            || delimiter_line.fence_context == FenceKind::Other
-        {
-            continue;
-        }
-
-        let Some(header_text) = table_candidate_text(header_line.text) else {
-            continue;
-        };
-        let Some(delimiter_text) = table_candidate_text(delimiter_line.text) else {
-            continue;
-        };
-
-        if is_table_header_line(header_text) && is_table_delimiter_line(delimiter_text) {
-            return TableHoldbackState::Confirmed {
-                table_start: header_line.source_start,
-            };
-        }
-    }
-
-    let pending_header = lines.iter().rev().find(|line| !line.text.trim().is_empty());
-    if let Some(line) = pending_header
-        && line.fence_context != FenceKind::Other
-        && table_candidate_text(line.text).is_some_and(is_table_header_line)
-    {
-        return TableHoldbackState::PendingHeader {
-            header_start: line.source_start,
-        };
-    }
-    TableHoldbackState::None
+    let mut scanner = TableHoldbackScanner::new();
+    scanner.push_source_chunk(source);
+    scanner.state()
 }
