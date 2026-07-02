@@ -526,8 +526,12 @@ fn theme_item(
     background: Option<SyntectColor>,
     font_style: Option<FontStyle>,
 ) -> ThemeItem {
+    let scope = match ScopeSelectors::from_str(scope) {
+        Ok(scope) => scope,
+        Err(err) => panic!("valid scope selector: {err}"),
+    };
     ThemeItem {
-        scope: ScopeSelectors::from_str(scope).expect("valid scope selector"),
+        scope,
         style: StyleModifier {
             foreground: Some(foreground),
             background,

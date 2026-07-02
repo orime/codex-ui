@@ -249,8 +249,10 @@ pub(crate) fn active_palette() -> UiPalette {
 pub(crate) fn palette_for_terminal_bg(terminal_bg: Option<(u8, u8, u8)>) -> UiPalette {
     let theme_name = current_theme_name();
     palette_for_theme_name(theme_name.as_str(), terminal_bg).unwrap_or_else(|| {
-        palette_for_theme_name(DEFAULT_UI_THEME_NAME, terminal_bg)
-            .expect("default ui theme must exist")
+        match palette_for_theme_name(DEFAULT_UI_THEME_NAME, terminal_bg) {
+            Some(palette) => palette,
+            None => panic!("default ui theme must exist"),
+        }
     })
 }
 
@@ -287,9 +289,10 @@ fn build_syntax_theme_palette_for_theme_name(
     terminal_bg: Option<(u8, u8, u8)>,
 ) -> UiSyntaxThemePalette {
     let spec = theme_specs().get(theme_name).unwrap_or_else(|| {
-        theme_specs()
-            .get(DEFAULT_UI_THEME_NAME)
-            .expect("default ui theme must exist")
+        match theme_specs().get(DEFAULT_UI_THEME_NAME) {
+            Some(spec) => spec,
+            None => panic!("default ui theme must exist"),
+        }
     });
     let use_light_variant = terminal_bg.is_some_and(is_light);
     let variant = if use_light_variant {
@@ -547,9 +550,10 @@ fn build_syntax_theme_palette_for_theme_name(
 
 fn build_palette_for_theme_name(theme_name: &str, terminal_bg: Option<(u8, u8, u8)>) -> UiPalette {
     let spec = theme_specs().get(theme_name).unwrap_or_else(|| {
-        theme_specs()
-            .get(DEFAULT_UI_THEME_NAME)
-            .expect("default ui theme must exist")
+        match theme_specs().get(DEFAULT_UI_THEME_NAME) {
+            Some(spec) => spec,
+            None => panic!("default ui theme must exist"),
+        }
     });
     let use_light_variant = terminal_bg.is_some_and(is_light);
     let variant = if use_light_variant {

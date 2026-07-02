@@ -13,11 +13,10 @@ Doing only the first part is not a complete upgrade.
 
 ## Command Contract
 
-The repository must keep three command contracts stable:
+The repository must keep two command contracts stable:
 
 - `codex`: the official command; this repository does not overwrite it
 - `codex-ui`: the stable release command from GitHub Release, unless the user explicitly opts in to overwrite it
-- `codex-ui-dev`: the local development command pointing at the current workspace build
 
 Do not bind the stable `codex-ui` command to a local `target` directory by default.
 
@@ -28,16 +27,15 @@ build, check the resolved launcher first:
 ```sh
 type -a codex-ui
 codex-ui --version
-codex-ui-dev --version
 ```
 
-Updating `codex-ui-dev` only refreshes the development launcher. To refresh the stable
-local command before the GitHub Release is installed, replace the installed `codex-ui-bin`
+To refresh the stable local command before the GitHub Release is installed, replace the installed `codex-ui-bin`
 with the release binary while preserving the launcher:
 
 ```sh
 install -m 755 codex-rs/target/release/codex ~/.n/bin/codex-ui-bin
 install -m 755 codex-rs/target/release/codex ~/.local/bin/codex-ui-bin
+ln -f ~/.n/bin/codex-ui-bin ~/.local/bin/codex-ui-bin
 codex-ui --version
 ```
 
@@ -72,7 +70,7 @@ Avoid letting scattered raw color helpers such as `.cyan()`, `.green()`, `.red()
 1. Align with the upstream stable release tag.
 2. Port theme infrastructure and visible UI consumers.
 3. Fix README, installer, workflow, and release wording together.
-4. Link `codex-ui-dev` and smoke test locally.
+4. Install the local release binary as `codex-ui-bin` and smoke test `codex-ui`.
 5. Run `cargo check -p codex-tui`.
 6. Run `cargo test -p codex-tui`.
 7. Run `just fix -p codex-tui`.
@@ -82,14 +80,14 @@ Avoid letting scattered raw color helpers such as `.cyan()`, `.green()`, `.red()
 
 ## Standard Upgrade Procedure
 
-Use this procedure for every future upstream release, for example `rust-v0.131.0`.
+Use this procedure for every future upstream release, for example `rust-v0.143.0`.
 
 ### 1. Confirm the target upstream tag
 
 Do not guess the newest release. Confirm that the upstream Rust tag exists first:
 
 ```sh
-git ls-remote --tags https://github.com/openai/codex.git 'refs/tags/rust-v0.131.0'
+git ls-remote --tags https://github.com/openai/codex.git 'refs/tags/rust-v0.143.0'
 ```
 
 If network access is slow or blocked, use the user's proxy rule and retry with proxy enabled.
@@ -102,7 +100,7 @@ landed:
 ```sh
 git switch main
 git pull --ff-only
-git switch -c upgrade/rust-v0.131.0-ui
+git switch -c upgrade/rust-v0.143.0-ui
 ```
 
 If local work is dirty, inspect it first and do not reset or discard user changes.
@@ -112,13 +110,13 @@ If local work is dirty, inspect it first and do not reset or discard user change
 Fetch the upstream source and align the Rust core with the target tag. The goal is not to build a
 plain official Codex binary. The goal is:
 
-- keep upstream core/API/behavior from `rust-v0.131.0`
+- keep upstream core/API/behavior from `rust-v0.143.0`
 - reapply the `codex-ui` visual and interaction language on top of it
 
 Use a temporary upstream checkout/worktree when needed:
 
 ```sh
-git fetch https://github.com/openai/codex.git rust-v0.131.0
+git fetch https://github.com/openai/codex.git rust-v0.143.0
 ```
 
 Resolve conflicts in favor of upstream core behavior unless the change is explicitly part of the
@@ -163,23 +161,16 @@ cargo build --manifest-path codex-rs/Cargo.toml --release --bin codex
 codex-rs/target/release/codex --version
 ```
 
-The version must report the target upstream version, for example `codex-cli 0.131.0`.
+The version must report the target upstream version, for example `codex-cli 0.143.0`.
 
-### 6. Refresh local commands correctly
+### 6. Refresh the local command correctly
 
-Refresh the development launcher first:
-
-```sh
-CODEX_UI_PROFILE=release ./scripts/link-local-codex-ui.sh
-codex-ui-dev --version
-```
-
-If the user wants the normal `codex-ui` command to run the new local build before a GitHub Release
-installer is available, update the installed `codex-ui-bin` while preserving the wrapper:
+Replace the installed `codex-ui-bin` while preserving the wrapper:
 
 ```sh
 install -m 755 codex-rs/target/release/codex ~/.n/bin/codex-ui-bin
 install -m 755 codex-rs/target/release/codex ~/.local/bin/codex-ui-bin
+ln -f ~/.n/bin/codex-ui-bin ~/.local/bin/codex-ui-bin
 codex-ui --version
 ```
 
@@ -187,9 +178,7 @@ Always diagnose command confusion with:
 
 ```sh
 type -a codex-ui
-type -a codex-ui-dev
 codex-ui --version
-codex-ui-dev --version
 ```
 
 ### 7. Package and smoke test the local artifact
@@ -211,14 +200,14 @@ Use `x86_64-apple-darwin` instead on Intel macOS.
 Commit and push the upgrade branch:
 
 ```sh
-git push origin upgrade/rust-v0.131.0-ui
+git push origin upgrade/rust-v0.143.0-ui
 ```
 
 After the branch is merged or intentionally chosen as the release source, tag the release:
 
 ```sh
-git tag v0.131.0-ui.1
-git push origin v0.131.0-ui.1
+git tag v0.143.0-ui.1
+git push origin v0.143.0-ui.1
 ```
 
 Then monitor the remote build:
@@ -230,14 +219,14 @@ gh run watch <run-id> --repo orime/codex-ui --exit-status
 ```
 
 If a tag has already been pushed, do not rewrite or delete it by default. Fix forward with
-`v0.131.0-ui.2`.
+`v0.143.0-ui.2`.
 
 ### 9. Confirm the GitHub Release
 
 The release is not complete until the GitHub Release exists and has all expected assets:
 
 ```sh
-gh release view v0.131.0-ui.1 --repo orime/codex-ui --json tagName,url,assets,publishedAt
+gh release view v0.143.0-ui.1 --repo orime/codex-ui --json tagName,url,assets,publishedAt
 ```
 
 Expected macOS assets:
@@ -260,11 +249,11 @@ What went well:
 - local focused validation was run: `cargo check -p codex-tui`, `cargo test -p codex-tui`,
   `just fix -p codex-tui`, and release build
 - the release workflow now builds macOS assets remotely
-- command contracts are documented so `codex`, `codex-ui`, and `codex-ui-dev` stay separate
+- command contracts are documented so `codex` and `codex-ui` stay separate
 
 What did not go well:
 
-- the first local handoff refreshed `codex-ui-dev` but left the stable `codex-ui-bin` at `0.125.0`
+- the first local handoff refreshed a development launcher but left the stable `codex-ui-bin` at `0.125.0`
 - the tag `v0.130.0-ui.1` was pushed before the later documentation fix, so the documentation fix
   is on the branch but not inside that tag
 - the remote release was described too early; the GitHub Release is only real after the Actions run
@@ -331,3 +320,32 @@ upstream-only CI triggers, upstream README assumptions, or unrelated Rust depend
 Rust toolchain and Cargo dependency bumps are separate maintenance work. Do not mix them into an
 upstream Codex version upgrade unless they are required by the target upstream tag or by a concrete
 build failure.
+
+## Lessons From The 0.142.5 Port
+
+What mattered:
+
+- upstream `rust-v0.142.5` requires Rust `1.95.0`; GitHub Actions and local commands must use the
+  same toolchain
+- plain `cargo test -p codex-tui` can stack overflow locally; use
+  `RUST_MIN_STACK=8388608 cargo +1.95.0 test --manifest-path codex-rs/Cargo.toml -p codex-tui`
+- release build is slow and large on first build because the final `codex` binary uses
+  `opt-level=3`, ThinLTO, V8, app-server, and TUI dependencies; expect tens of minutes locally
+- `codex-rs/target` can grow past 20 GiB during release builds; after installing `codex-ui-bin`,
+  remove `codex-rs/target` if disk space matters
+- `codex-ui` is only a wrapper; the stable command is upgraded only when the sibling
+  `codex-ui-bin` is replaced
+- if both `~/.n/bin/codex-ui` and `~/.local/bin/codex-ui` exist, update both sibling
+  `codex-ui-bin` files or hard-link them
+- the release workflow depends on `scripts/package-codex-ui-release.sh` and
+  `themes/opencode-matrix.tmTheme`; keep both tracked in git
+
+What changed during the port:
+
+- 0.142 changed resume picker API shape; keep upstream function signatures and remove stale fork
+  arguments instead of copying old call sites forward
+- `/theme-ui` must stop queued-command draining like the other picker commands
+- `status_indicator_widget` keeps the 0.142 behavior but reapplies the codex-ui header, elapsed,
+  interrupt, and details styling
+- theme helper invariants should avoid `expect()` in non-test code because the workspace denies
+  `clippy::expect_used`

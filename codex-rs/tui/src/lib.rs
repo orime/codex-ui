@@ -178,13 +178,13 @@ mod terminal_title;
 mod terminal_visualization_instructions;
 mod text_formatting;
 mod theme_picker;
-mod ui_theme;
 mod thread_transcript;
 mod token_usage;
 mod tooltips;
 mod transcript_reflow;
 mod tui;
 mod ui_consts;
+mod ui_theme;
 pub(crate) mod update_action;
 pub use update_action::UpdateAction;
 #[cfg(not(debug_assertions))]

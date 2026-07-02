@@ -38,6 +38,9 @@ Buffer {
         x: 21, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 48, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: DIM,
         x: 51, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 2, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: DIM,
+        x: 8, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: DIM,
+        x: 13, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 28, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: DIM,
+        x: 31, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }
